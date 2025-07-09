@@ -27,6 +27,7 @@ export function usePetProfile(userId: string | null, petId: string | null) {
              // The onboarding flow adds these, but older pets might not have them
              species: data.species || 'Dog',
              activityLevel: data.activityLevel || 'Playful',
+             unitPreference: data.unitPreference || 'metric',
         } as Pet);
       } else {
         console.log("No such pet!");

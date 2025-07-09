@@ -27,6 +27,7 @@ export function usePets(userId: string | null) {
           // Handle legacy data that might not have these fields
           species: data.species || 'Dog', 
           activityLevel: data.activityLevel || 'Playful',
+          unitPreference: data.unitPreference || 'metric',
         } as Pet);
       });
       setPets(petsData);

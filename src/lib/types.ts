@@ -6,9 +6,16 @@ export interface Pet {
   species: 'Dog' | 'Cat' | 'Rabbit' | 'Bird' | 'Other';
   breed: string;
   age: number; // in years
-  weight: number; // in kg
+  weight: number; // in kg or lbs, depending on unitPreference
   activityLevel: 'Couch Potato' | 'Playful' | 'Hyperactive';
   avatarUrl: string;
+  nickname?: string;
+  feedingSchedule?: ('morning' | 'afternoon' | 'evening')[];
+  trainingGoal?: number; // weekly minutes
+  unitPreference?: 'metric' | 'imperial';
+  isFirstPet?: boolean;
+  favoriteFoods?: string[];
+  allergies?: string;
 }
 
 export interface Memory {
@@ -20,7 +27,7 @@ export interface Memory {
 }
 
 export interface ActivityLog {
-  id: string;
+  id:string;
   timestamp: Date | Timestamp;
   type: 'walk' | 'play' | 'training';
   duration: number; // in minutes
