@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { BottomNavBar } from '@/components/layout/BottomNavBar';
+import { DesktopSidebar } from '@/components/layout/DesktopSidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 
 export const metadata: Metadata = {
   title: 'Barkive',
@@ -23,8 +25,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased bg-background">
-        {children}
+      <body className="font-body antialiased">
+        <SidebarProvider>
+          <DesktopSidebar />
+          <SidebarInset>{children}</SidebarInset>
+        </SidebarProvider>
         <BottomNavBar />
         <Toaster />
       </body>

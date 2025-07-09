@@ -7,7 +7,7 @@ import { pet, memories, activityLogs, feedingLogs } from '@/lib/mock-data';
 
 export default function Home() {
   return (
-    <main className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
+    <div className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
       <div className="max-w-7xl mx-auto">
         <header id="dashboard" className="mb-8 scroll-mt-20">
           <h1 className="font-headline text-3xl font-bold text-gray-900">
@@ -37,6 +37,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
