@@ -1,75 +1,261 @@
+'use client';
+
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Syringe, HeartPulse, Weight, Thermometer, Pill } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  RadialBarChart,
+  RadialBar,
+  PolarAngleAxis,
+} from 'recharts';
+import {
+  HeartPulse,
+  Weight,
+  Thermometer,
+  Pill,
+  PlusCircle,
+  Stethoscope,
+  Scissors,
+  Syringe,
+  Sparkles,
+  Calendar,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
 
 const healthData = {
-  lastVetVisit: '2024-05-20',
-  weight: 30, // in kg
-  temperature: 38.5, // in Celsius
-  vaccinations: [
-    { name: 'Rabies', date: '2024-01-15', nextDue: '2025-01-15' },
-    { name: 'DHPP', date: '2024-01-15', nextDue: '2027-01-15' },
-  ]
+  vitals: {
+    weight: 30, // in kg
+    temperature: 38.5, // in Celsius
+    lastVetVisit: '2024-05-20',
+  },
+  reminders: [
+    { id: 1, type: 'vaccination', name: 'Rabies', due: '2025-01-15' },
+    { id: 2, type: 'vaccination', name: 'DHPP', due: '2027-01-15' },
+    { id: 3, type: 'appointment', name: 'Annual Checkup', due: '2024-08-01' },
+    { id: 4, type: 'grooming', name: 'Full Groom', due: '2024-07-20' },
+  ],
+  timeline: [
+    { id: 1, type: 'vet-visit', date: '2024-05-20', title: 'Annual Checkup', notes: 'All clear, healthy check-up.' },
+    { id: 2, type: 'vaccination', date: '2024-01-15', title: 'Rabies & DHPP', notes: 'Booster shots administered.' },
+    { id: 3, type: 'grooming', date: '2024-06-15', title: 'Summer Cut', notes: 'Feeling fresh and clean.' },
+    { id: 4, type: 'weight', date: '2024-05-20', title: 'Weigh-in', notes: 'Stable weight at 30kg.' },
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+  weightTrend: [
+    { date: '2024-01-01', weight: 29.5 },
+    { date: '2024-02-01', weight: 29.7 },
+    { date: '2024-03-01', weight: 30.1 },
+    { date: '2024-04-01', weight: 30.0 },
+    { date: '2024-05-01', weight: 29.9 },
+    { date: '2024-06-01', weight: 30.0 },
+  ],
 };
 
-function HealthTile({ icon: Icon, title, value, unit, colorClass }: { icon: React.ElementType, title: string, value: string | number, unit?: string, colorClass: string}) {
+const reminderIcons = {
+  vaccination: { icon: Syringe, color: 'text-mint-green' },
+  appointment: { icon: Stethoscope, color: 'text-coral-blush' },
+  grooming: { icon: Scissors, color: 'text-lavender' },
+  medication: { icon: Pill, color: 'text-yellow-500' },
+};
+
+const timelineIcons = {
+  'vet-visit': { icon: Stethoscope, color: 'text-coral-blush' },
+  vaccination: { icon: Syringe, color: 'text-mint-green' },
+  grooming: { icon: Scissors, color: 'text-lavender' },
+  weight: { icon: Weight, color: 'text-blue-500' },
+  temperature: { icon: Thermometer, color: 'text-orange-500' },
+};
+
+function HealthProgressRing({ score }: { score: number }) {
+  const color = score > 80 ? 'hsl(var(--primary))' : score > 50 ? 'hsl(var(--chart-4))' : 'hsl(var(--destructive))';
+  const data = [{ name: 'score', value: score, fill: color }];
+
   return (
     <Card className="rounded-2xl shadow-md">
-      <CardContent className="p-6 flex items-center gap-4">
-        <div className={`p-3 rounded-full ${colorClass.replace('text-', 'bg-')}/20`}>
-          <Icon className={`w-6 h-6 ${colorClass}`} />
+      <CardHeader>
+        <CardTitle className="font-headline text-gray-900 text-xl flex items-center gap-2">
+          <HeartPulse className="text-coral-blush" />
+          Wellness Check
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col items-center gap-4">
+        <div className="w-40 h-40 relative">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart innerRadius="70%" outerRadius="100%" barSize={12} data={data} startAngle={90} endAngle={-270}>
+              <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
+              <RadialBar background={{ fill: 'hsl(var(--muted))' }} dataKey="value" cornerRadius={10} />
+            </RadialBarChart>
+          </ResponsiveContainer>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-4xl font-bold text-gray-900" style={{ color }}>{score}<span className="text-2xl text-gray-500">%</span></p>
+          </div>
         </div>
-        <div>
-          <p className="text-sm text-gray-600">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">
-            {value}
-            {unit && <span className="text-lg ml-1 font-medium text-gray-500">{unit}</span>}
-          </p>
+        <p className="text-center text-gray-600">Your pet's health log is {score}% up-to-date!</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RemindersCard({ reminders }: { reminders: typeof healthData.reminders }) {
+  return (
+    <Card className="rounded-2xl shadow-md">
+      <CardHeader>
+        <CardTitle className="font-headline text-gray-900 text-xl flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Calendar className="text-lavender" />
+            Reminders
+          </div>
+          <Button size="sm" variant="ghost"><PlusCircle className="mr-2" />Add</Button>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <Accordion type="single" collapsible className="w-full">
+          {reminders.map((reminder) => {
+            const { icon: Icon, color } = reminderIcons[reminder.type as keyof typeof reminderIcons] || reminderIcons.medication;
+            const dueDate = new Date(reminder.due);
+            const isOverdue = dueDate < new Date();
+            return (
+              <AccordionItem value={`item-${reminder.id}`} key={reminder.id}>
+                <AccordionTrigger>
+                  <div className="flex items-center gap-3">
+                    <div className={cn('p-2 rounded-full bg-opacity-20', color.replace('text-', 'bg-'))}>
+                      <Icon className={cn('w-5 h-5', color)} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800">{reminder.name}</p>
+                      <p className={cn("text-sm", isOverdue ? "text-destructive" : "text-gray-600")}>
+                        Due: {formatDistanceToNow(dueDate, { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-gray-700 pl-12">Set a reminder for {format(dueDate, 'PPP')}.</p>
+                </AccordionContent>
+              </AccordionItem>
+            )
+          })}
+        </Accordion>
+      </CardContent>
+    </Card>
+  );
+}
+
+function HealthTimeline({ events }: { events: typeof healthData.timeline }) {
+  return (
+    <Card className="rounded-2xl shadow-md">
+      <CardHeader>
+        <CardTitle className="font-headline text-gray-900 text-xl">Health Timeline</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-6 relative">
+          <div className="absolute left-5 top-2 h-full w-0.5 bg-gray-200" />
+          {events.map(event => {
+            const {icon: Icon, color} = timelineIcons[event.type as keyof typeof timelineIcons];
+            return (
+               <div key={event.id} className="flex gap-4 items-start pl-0 relative">
+                  <div className="absolute left-5 -translate-x-1/2 mt-1.5 z-10 bg-background p-1 rounded-full">
+                    <div className={cn('p-2 rounded-full', color.replace('text-', 'bg-') + '/20')}>
+                      <Icon className={cn('w-5 h-5', color)} />
+                    </div>
+                  </div>
+                  <div className="pl-12 w-full">
+                     <div className="flex justify-between items-center">
+                        <p className="font-bold text-gray-900">{event.title}</p>
+                        <p className="text-xs text-gray-500">{format(new Date(event.date), 'MMM d, yyyy')}</p>
+                     </div>
+                     <p className="text-sm text-gray-700">{event.notes}</p>
+                  </div>
+               </div>
+            )
+          })}
         </div>
       </CardContent>
     </Card>
   );
 }
 
+function VitalsChart({ data }: { data: typeof healthData.weightTrend }) {
+  const formattedData = data.map(d => ({...d, date: format(new Date(d.date), 'MMM')}));
+  return (
+    <Card className="rounded-2xl shadow-md">
+      <CardHeader>
+        <CardTitle className="font-headline text-gray-900 text-xl">Weight Trend</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={formattedData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
+            <XAxis dataKey="date" />
+            <YAxis domain={['dataMin - 1', 'dataMax + 1']} />
+            <Tooltip contentStyle={{ borderRadius: '1rem', border: '1px solid hsl(var(--border))' }}/>
+            <Line type="monotone" dataKey="weight" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  )
+}
+
+function EncouragementCard() {
+  return (
+    <Card className="rounded-2xl shadow-md bg-mint-green/30 animate-glow">
+      <CardContent className="p-6 flex items-center gap-4">
+        <Sparkles className="w-8 h-8 text-mint-green" />
+        <div>
+          <p className="font-bold text-gray-900">Great Job!</p>
+          <p className="text-sm text-gray-700">Buddy's health is in tip-top shape. Keep up the amazing care!</p>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export default function HealthPage() {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  const healthScore = useMemo(() => {
+    if (!isClient) return 0;
+    const lastVisitDays = differenceInDays(new Date(), new Date(healthData.vitals.lastVetVisit));
+    const lastWeightDays = differenceInDays(new Date(), new Date(healthData.weightTrend[healthData.weightTrend.length - 1].date));
+    
+    let score = 0;
+    if (lastVisitDays < 180) score += 50; // within 6 months
+    else if (lastVisitDays < 365) score += 25;
+
+    if (lastWeightDays < 30) score += 50; // within 1 month
+    else if (lastWeightDays < 90) score += 25;
+    
+    return Math.min(score, 100);
+  }, [isClient]);
+
   return (
     <div className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <header className="mb-8">
             <h1 className="font-headline text-3xl font-bold text-gray-900">Health Overview</h1>
-            <p className="text-gray-700">Key health metrics and vaccination history.</p>
+            <p className="text-gray-700">Key health metrics, history, and reminders.</p>
         </header>
 
-        <main className="space-y-8">
-          <section>
-            <h2 className="font-headline text-2xl font-semibold text-gray-900 mb-4">Vitals</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              <HealthTile icon={HeartPulse} title="Last Vet Visit" value={new Date(healthData.lastVetVisit).toLocaleDateString()} colorClass="text-coral-blush" />
-              <HealthTile icon={Weight} title="Weight" value={healthData.weight} unit="kg" colorClass="text-mint-green" />
-              <HealthTile icon={Thermometer} title="Temperature" value={healthData.temperature} unit="°C" colorClass="text-lavender" />
+        <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+               <VitalsChart data={healthData.weightTrend} />
+               <HealthTimeline events={healthData.timeline} />
             </div>
-          </section>
-
-          <section>
-             <h2 className="font-headline text-2xl font-semibold text-gray-900 mb-4">Vaccination Status</h2>
-             <Card className="rounded-2xl shadow-md">
-                <CardContent className="p-6 space-y-4">
-                  {healthData.vaccinations.map((vax) => (
-                    <div key={vax.name} className="flex flex-col sm:flex-row justify-between sm:items-center p-4 rounded-lg bg-gray-50/80">
-                      <div className="flex items-center gap-3">
-                        <Pill className="w-5 h-5 text-mint-green"/>
-                        <div>
-                           <p className="font-bold text-gray-900">{vax.name}</p>
-                           <p className="text-sm text-gray-600">Last given: {new Date(vax.date).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                       <p className="text-sm text-gray-600 mt-2 sm:mt-0">
-                          Next due: <span className="font-semibold text-gray-800">{new Date(vax.nextDue).toLocaleDateString()}</span>
-                       </p>
-                    </div>
-                  ))}
-                </CardContent>
-             </Card>
-          </section>
+             <div className="lg:col-span-1 space-y-6">
+                <HealthProgressRing score={healthScore} />
+                {healthScore >= 80 && isClient && <EncouragementCard />}
+                <RemindersCard reminders={healthData.reminders} />
+             </div>
         </main>
       </div>
     </div>
