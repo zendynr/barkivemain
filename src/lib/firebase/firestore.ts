@@ -3,6 +3,8 @@ import {
   addDoc,
   serverTimestamp,
   Timestamp,
+  doc,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from './config';
 import type { FeedingLog, ActivityLog, Pet, Memory, HealthLog, Reminder } from '@/lib/types';
@@ -90,6 +92,16 @@ export const addReminder = (
       ...reminderData,
     });
 }
+
+export const deleteReminder = (
+    userId: string,
+    petId: string,
+    reminderId: string,
+) => {
+    const reminderDocRef = doc(db, 'users', userId, 'pets', petId, 'reminders', reminderId);
+    return deleteDoc(reminderDocRef);
+}
+
 
 // --- Read Operations (onSnapshot for real-time updates) ---
 // Note: Real-time listeners are implemented in the hooks for better component lifecycle management.

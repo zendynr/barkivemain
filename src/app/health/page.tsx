@@ -20,7 +20,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis,
 } from 'recharts';
 import {
-  HeartPulse, Weight, Thermometer, Pill, PlusCircle, Stethoscope, Scissors, Syringe, Sparkles,
+  HeartPulse, Weight, Thermometer, Pill, PlusCircle, Stethoscope, Scissors, Syringe, Sparkles, Check,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
@@ -28,7 +28,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthLogs } from '@/hooks/use-health-logs';
 import { useReminders } from '@/hooks/use-reminders';
-import { addHealthLog, addReminder } from '@/lib/firebase/firestore';
+import { addHealthLog, addReminder, deleteReminder } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { HealthLog, Reminder } from '@/lib/types';
 
@@ -235,7 +235,7 @@ function HealthProgressRing({ score }: { score: number }) {
   );
 }
 
-function RemindersCard({ reminders }: { reminders: Reminder[] }) {
+function RemindersCard({ reminders, onComplete }: { reminders: Reminder[]; onComplete: (id: string) => void }) {
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
@@ -276,7 +276,13 @@ function RemindersCard({ reminders }: { reminders: Reminder[] }) {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                    <p className="text-gray-700 pl-12">Set a reminder for {isClient ? format(dueDate, 'PPP') : ''}.</p>
+                    <div className="pl-12 space-y-4">
+                        {reminder.notes && <p className="text-gray-700 text-sm">Notes: {reminder.notes}</p>}
+                        <Button size="sm" variant="outline" onClick={() => onComplete(reminder.id)}>
+                            <Check className="mr-2 h-4 w-4" />
+                            Mark as Done
+                        </Button>
+                    </div>
                   </AccordionContent>
                 </AccordionItem>
               )
@@ -384,10 +390,16 @@ export default function HealthPage() {
     if (!userId || !petId) return;
     try {
       const logData: Omit<HealthLog, 'id'> = {
-        ...data,
         type: data.type as HealthLog['type'],
-        value: data.value ? (data.type === 'weight' || data.type === 'temperature' ? parseFloat(data.value) : data.value) : undefined,
+        title: data.title,
+        notes: data.notes,
+        timestamp: data.timestamp,
       };
+
+      if (data.value && data.value.trim() !== '') {
+        logData.value = (data.type === 'weight' || data.type === 'temperature') ? parseFloat(data.value) : data.value;
+      }
+
       await addHealthLog(userId, petId, logData);
       toast({ title: 'Success', description: 'Health event logged.' });
     } catch (e) {
@@ -410,6 +422,17 @@ export default function HealthPage() {
       toast({ variant: 'destructive', title: 'Error', description: 'Failed to set reminder.' });
     }
   };
+  
+  const handleCompleteReminder = async (reminderId: string) => {
+    if (!userId || !petId) return;
+    try {
+        await deleteReminder(userId, petId, reminderId);
+        toast({ title: 'Reminder Completed!', description: 'Great job staying on top of things.' });
+    } catch (e) {
+        console.error(e);
+        toast({ variant: 'destructive', title: 'Error', description: 'Failed to complete reminder.' });
+    }
+  }
 
   const { healthScore, weightTrend } = useMemo(() => {
     if (!isClient) return { healthScore: 0, weightTrend: [] };
@@ -486,7 +509,7 @@ export default function HealthPage() {
              <div className="lg:col-span-1 space-y-6">
                 <HealthProgressRing score={healthScore} />
                 {healthScore >= 80 && isClient && <EncouragementCard />}
-                <RemindersCard reminders={reminders} />
+                <RemindersCard reminders={reminders} onComplete={handleCompleteReminder} />
              </div>
         </main>
       </div>

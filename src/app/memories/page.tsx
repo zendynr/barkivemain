@@ -187,11 +187,16 @@ export default function MemoriesPage() {
       throw new Error("User or pet not available");
     }
     const imageUrl = await uploadMemoryImage(userId, petId, data.image);
+    
     const memoryData: Omit<Memory, 'id' | 'timestamp'> = {
       caption: data.caption,
       imageUrl: imageUrl,
-      aiHint: data.aiHint,
     };
+
+    if (data.aiHint && data.aiHint.trim() !== '') {
+      memoryData.aiHint = data.aiHint;
+    }
+
     await addMemory(userId, petId, memoryData);
   }
 
