@@ -3,9 +3,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { ActivityLog } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PawPrint, Award } from 'lucide-react';
+import { PawPrint, Award, Forward } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
@@ -69,6 +71,25 @@ export function ActivityTracker({ activityLogs }: { activityLogs: ActivityLog[] 
       transition: 'left 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s',
     };
   }, [currentDayIndex, isClient]);
+  
+  if (activityLogs.length === 0 && isClient) {
+    return (
+       <Card className="rounded-2xl shadow-md">
+        <CardContent className="p-6 text-center flex flex-col items-center justify-center gap-4 min-h-[240px]">
+          <div className="w-16 h-16 rounded-full bg-mint-green/20 flex items-center justify-center">
+            <PawPrint className="w-10 h-10 text-mint-green" />
+          </div>
+          <h3 className="font-headline text-2xl font-semibold text-gray-800">Ready for an adventure?</h3>
+          <p className="text-gray-600 max-w-xs mx-auto">Log your pet's first activity to get this tracker started. Let's go!</p>
+          <Button asChild size="lg" className="mt-2">
+            <Link href="/activity">
+              Log Activity <Forward className="ml-2 h-4 w-4" />
+            </Link>
+          </Button>
+        </CardContent>
+       </Card>
+    )
+  }
 
   return (
     <Card className="rounded-2xl shadow-md">
@@ -86,7 +107,6 @@ export function ActivityTracker({ activityLogs }: { activityLogs: ActivityLog[] 
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-8 pb-4">
-        {/* The timeline and paw indicator */}
         <div className="relative h-14">
           <div className="absolute top-1/2 w-full h-1.5 bg-gray-200 rounded-full -translate-y-1/2">
              <div
@@ -112,7 +132,6 @@ export function ActivityTracker({ activityLogs }: { activityLogs: ActivityLog[] 
           </div>
         </div>
 
-        {/* Day labels */}
         <div className="grid grid-cols-7 text-center">
             {dayLabels.map((label, index) => (
                 <p key={index} className={cn(

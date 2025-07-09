@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/carousel';
 import Image from 'next/image';
 import { Camera } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export function MemoriesCarousel({ memories }: { memories: Memory[] }) {
   const sortedMemories = [...memories].sort(
@@ -32,8 +33,12 @@ export function MemoriesCarousel({ memories }: { memories: Memory[] }) {
           className="w-full"
         >
           <CarouselContent className="-ml-4">
-            {sortedMemories.map((memory) => (
-              <CarouselItem key={memory.id} className="pl-4 md:basis-1/2 lg:basis-1/3">
+            {sortedMemories.map((memory, index) => (
+              <CarouselItem
+                key={memory.id}
+                className="pl-4 md:basis-1/2 lg:basis-1/3 animate-slide-in-right"
+                style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}
+              >
                 <div className="p-1">
                   <Card className="rounded-2xl overflow-hidden group transition-all hover:shadow-lg">
                     <CardContent className="p-0">

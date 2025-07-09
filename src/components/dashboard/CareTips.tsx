@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Pet } from '@/lib/types';
 import { Sparkles, Bot } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 export function CareTips({ pet }: { pet: Pet }) {
   const [tips, setTips] = useState('');
@@ -54,12 +55,15 @@ export function CareTips({ pet }: { pet: Pet }) {
         ) : tips ? (
           <p className="text-base text-gray-700 leading-relaxed">{tips}</p>
         ) : (
-          <div className="text-center flex flex-col items-center gap-4">
+          <div className="text-center flex flex-col items-center gap-4 py-4">
             <Bot className="w-12 h-12 text-gray-300" />
             <p className="text-gray-600">Get AI-powered care tips tailored for {pet.name}!</p>
             <Button
               onClick={handleGetTips}
-              className="bg-lavender text-accent-foreground hover:bg-lavender/90 transition-transform hover:scale-105"
+              className={cn(
+                "bg-lavender text-accent-foreground hover:bg-lavender/90",
+                !tips && "animate-glow"
+              )}
             >
               Generate Tips
             </Button>
