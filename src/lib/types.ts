@@ -25,4 +25,7 @@ export interface ActivityLog {
 export interface FeedingLog {
   id: string;
   timestamp: Date;
+  foodType: 'Kibble' | 'Wet Food' | 'Treat' | 'Other';
+  quantity: string; // e.g., "1 cup", "1 can", "2 treats"
+  notes?: string;
 }

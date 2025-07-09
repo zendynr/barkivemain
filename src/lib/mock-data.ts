@@ -78,8 +78,31 @@ export const activityLogs: ActivityLog[] = [
 ];
 
 export const feedingLogs: FeedingLog[] = [
-  // Breakfast for today
-  { id: 'feed1', timestamp: new Date(new Date().setHours(8, 30, 0, 0)) },
-  // Dinner for today
-  { id: 'feed2', timestamp: new Date(new Date().setHours(18, 0, 0, 0)) },
+  // Today's meals
+  {
+    id: 'feed1',
+    timestamp: new Date(new Date().setHours(8, 30, 0, 0)),
+    foodType: 'Kibble',
+    quantity: '1 cup',
+  },
+    {
+    id: 'feed2',
+    timestamp: new Date(new Date().setHours(18, 0, 0, 0)),
+    foodType: 'Wet Food',
+    quantity: '1 can',
+  },
+  // Yesterday's meals
+  {
+    id: 'feed3',
+    timestamp: new Date(new Date(yesterday).setHours(8, 35, 0, 0)),
+    foodType: 'Kibble',
+    quantity: '1 cup',
+    notes: 'Ate it all up quickly!',
+  },
+  {
+    id: 'feed4',
+    timestamp: new Date(new Date(yesterday).setHours(18, 10, 0, 0)),
+    foodType: 'Wet Food',
+    quantity: '1 can',
+  },
 ];

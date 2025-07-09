@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarHeader,
@@ -11,54 +13,17 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Home, Utensils, Footprints, Camera, Syringe, Dog } from 'lucide-react';
-import { useState, useEffect } from 'react';
 
 const navItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: Home },
-  { id: 'feeding', label: 'Feeding', icon: Utensils },
-  { id: 'activity', label: 'Activity', icon: Footprints },
-  { id: 'memories', label: 'Memories', icon: Camera },
-  { id: 'health', label: 'Health', icon: Syringe },
+  { href: '/', label: 'Dashboard', icon: Home },
+  { href: '/feeding', label: 'Feeding', icon: Utensils },
+  { href: '/activity', label: 'Activity', icon: Footprints },
+  { href: '/memories', label: 'Memories', icon: Camera },
+  { href: '/health', label: 'Health', icon: Syringe },
 ];
 
 export function DesktopSidebar() {
-  const [activeSection, setActiveSection] = useState('dashboard');
-
-  const handleScroll = (id: string) => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setActiveSection(id);
-    }
-  };
-  
-  useEffect(() => {
-    const sectionElements = navItems
-      .map(({ id }) => document.getElementById(id))
-      .filter((el): el is HTMLElement => el !== null);
-
-    if (sectionElements.length === 0) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      {
-        rootMargin: '0px 0px -70% 0px', // A section is active if it's in the top 30% of the viewport
-        threshold: 0,
-      }
-    );
-
-    sectionElements.forEach((section) => observer.observe(section));
-
-    return () => {
-      sectionElements.forEach((section) => observer.unobserve(section));
-    };
-  }, []);
+  const pathname = usePathname();
 
   return (
     <Sidebar collapsible="icon">
@@ -74,16 +39,18 @@ export function DesktopSidebar() {
         <SidebarMenu>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = activeSection === item.id;
+            const isActive = pathname === item.href;
             return (
               <SidebarMenuItem key={item.label}>
                 <SidebarMenuButton
-                  onClick={() => handleScroll(item.id)}
+                  asChild
                   isActive={isActive}
                   tooltip={{ children: item.label }}
                 >
-                  <Icon />
-                  <span>{item.label}</span>
+                  <Link href={item.href}>
+                    <Icon />
+                    <span>{item.label}</span>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );
