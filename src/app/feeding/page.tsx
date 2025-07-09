@@ -384,6 +384,7 @@ export default function FeedingPage() {
   const { feedingLogs, loading } = useFeedingLogs(userId, petId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showTreats, setShowTreats] = useState(true);
+  const { toast } = useToast();
 
   const handleAddFeeding = async (newLogData: Omit<FeedingLog, 'id' | 'timestamp'>) => {
     if (!userId || !petId) return;
@@ -391,6 +392,11 @@ export default function FeedingPage() {
         await addFeedingLog(userId, petId, newLogData);
     } catch(e) {
         console.error("Failed to add feeding log:", e);
+        toast({
+            variant: 'destructive',
+            title: 'Error logging feed',
+            description: 'Could not save the feeding log. Please try again.',
+        });
     }
   };
 

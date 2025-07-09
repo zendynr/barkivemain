@@ -30,49 +30,26 @@ import {
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/hooks/use-auth';
+import { useHealthLogs } from '@/hooks/use-health-logs';
+import { useReminders } from '@/hooks/use-reminders';
+import type { HealthLog, Reminder } from '@/lib/types';
 
-// This data is now considered mock. In a real app, this would come from Firestore.
-const healthData = {
-  vitals: {
-    weight: 30, // in kg
-    temperature: 38.5, // in Celsius
-    lastVetVisit: '2024-05-20',
-  },
-  reminders: [
-    { id: 1, type: 'vaccination', name: 'Rabies', due: '2025-01-15' },
-    { id: 2, type: 'vaccination', name: 'DHPP', due: '2027-01-15' },
-    { id: 3, type: 'appointment', name: 'Annual Checkup', due: '2024-08-01' },
-    { id: 4, type: 'grooming', name: 'Full Groom', due: '2024-07-20' },
-  ],
-  timeline: [
-    { id: 1, type: 'vet-visit', date: '2024-05-20', title: 'Annual Checkup', notes: 'All clear, healthy check-up.' },
-    { id: 2, type: 'vaccination', date: '2024-01-15', title: 'Rabies & DHPP', notes: 'Booster shots administered.' },
-    { id: 3, type: 'grooming', date: '2024-06-15', title: 'Summer Cut', notes: 'Feeling fresh and clean.' },
-    { id: 4, type: 'weight', date: '2024-5-20', title: 'Weigh-in', notes: 'Stable weight at 30kg.' },
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
-  weightTrend: [
-    { date: '2024-01-01', weight: 29.5 },
-    { date: '2024-02-01', weight: 29.7 },
-    { date: '2024-03-01', weight: 30.1 },
-    { date: '2024-04-01', weight: 30.0 },
-    { date: '2024-05-01', weight: 29.9 },
-    { date: '2024-06-01', weight: 30.0 },
-  ],
-};
 
-const reminderIcons = {
+const reminderIcons: Record<Reminder['type'], { icon: React.ElementType; color: string }> = {
   vaccination: { icon: Syringe, color: 'text-mint-green' },
   appointment: { icon: Stethoscope, color: 'text-coral-blush' },
   grooming: { icon: Scissors, color: 'text-lavender' },
   medication: { icon: Pill, color: 'text-yellow-500' },
 };
 
-const timelineIcons = {
+const timelineIcons: Record<HealthLog['type'], { icon: React.ElementType; color: string }> = {
   'vet-visit': { icon: Stethoscope, color: 'text-coral-blush' },
   vaccination: { icon: Syringe, color: 'text-mint-green' },
   grooming: { icon: Scissors, color: 'text-lavender' },
   weight: { icon: Weight, color: 'text-blue-500' },
   temperature: { icon: Thermometer, color: 'text-orange-500' },
+  medication: { icon: Pill, color: 'text-yellow-500' },
 };
 
 function HealthProgressRing({ score }: { score: number }) {
@@ -105,7 +82,12 @@ function HealthProgressRing({ score }: { score: number }) {
   );
 }
 
-function RemindersCard({ reminders }: { reminders: typeof healthData.reminders }) {
+function RemindersCard({ reminders }: { reminders: Reminder[] }) {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   return (
     <Card className="rounded-2xl shadow-md">
       <CardHeader>
@@ -118,73 +100,84 @@ function RemindersCard({ reminders }: { reminders: typeof healthData.reminders }
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <Accordion type="single" collapsible className="w-full">
-          {reminders.map((reminder) => {
-            const { icon: Icon, color } = reminderIcons[reminder.type as keyof typeof reminderIcons] || reminderIcons.medication;
-            const dueDate = new Date(reminder.due);
-            const isOverdue = dueDate < new Date();
-            return (
-              <AccordionItem value={`item-${reminder.id}`} key={reminder.id}>
-                <AccordionTrigger>
-                  <div className="flex items-center gap-3">
-                    <div className={cn('p-2 rounded-full bg-opacity-20', color.replace('text-', 'bg-'))}>
-                      <Icon className={cn('w-5 h-5', color)} />
+        {reminders.length > 0 ? (
+          <Accordion type="single" collapsible className="w-full">
+            {reminders.map((reminder) => {
+              const { icon: Icon, color } = reminderIcons[reminder.type] || reminderIcons.medication;
+              const dueDate = new Date(reminder.due);
+              const isOverdue = dueDate < new Date();
+              return (
+                <AccordionItem value={`item-${reminder.id}`} key={reminder.id}>
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-3">
+                      <div className={cn('p-2 rounded-full bg-opacity-20', color.replace('text-', 'bg-'))}>
+                        <Icon className={cn('w-5 h-5', color)} />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-800">{reminder.name}</p>
+                        {isClient && (
+                          <p className={cn("text-sm", isOverdue ? "text-destructive" : "text-gray-600")}>
+                            Due: {formatDistanceToNow(dueDate, { addSuffix: true })}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-semibold text-gray-800">{reminder.name}</p>
-                      <p className={cn("text-sm", isOverdue ? "text-destructive" : "text-gray-600")}>
-                        Due: {formatDistanceToNow(dueDate, { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <p className="text-gray-700 pl-12">Set a reminder for {format(dueDate, 'PPP')}.</p>
-                </AccordionContent>
-              </AccordionItem>
-            )
-          })}
-        </Accordion>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <p className="text-gray-700 pl-12">Set a reminder for {isClient ? format(dueDate, 'PPP') : ''}.</p>
+                  </AccordionContent>
+                </AccordionItem>
+              )
+            })}
+          </Accordion>
+        ) : (
+          <p className="text-gray-500 text-center py-4">No upcoming reminders.</p>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function HealthTimeline({ events }: { events: typeof healthData.timeline }) {
+function HealthTimeline({ events }: { events: HealthLog[] }) {
   return (
     <Card className="rounded-2xl shadow-md">
       <CardHeader>
         <CardTitle className="font-headline text-gray-900 text-xl">Health Timeline</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-6 relative">
-          <div className="absolute left-5 top-2 h-full w-0.5 bg-gray-200" />
-          {events.map(event => {
-            const {icon: Icon, color} = timelineIcons[event.type as keyof typeof timelineIcons];
-            return (
-               <div key={event.id} className="flex gap-4 items-start pl-0 relative">
-                  <div className="absolute left-5 -translate-x-1/2 mt-1.5 z-10 bg-background p-1 rounded-full">
-                    <div className={cn('p-2 rounded-full', color.replace('text-', 'bg-') + '/20')}>
-                      <Icon className={cn('w-5 h-5', color)} />
+        {events.length > 0 ? (
+          <div className="space-y-6 relative">
+            <div className="absolute left-5 top-2 h-full w-0.5 bg-gray-200" />
+            {events.map(event => {
+              const {icon: Icon, color} = timelineIcons[event.type];
+              return (
+                <div key={event.id} className="flex gap-4 items-start pl-0 relative">
+                    <div className="absolute left-5 -translate-x-1/2 mt-1.5 z-10 bg-background p-1 rounded-full">
+                      <div className={cn('p-2 rounded-full', color.replace('text-', 'bg-') + '/20')}>
+                        <Icon className={cn('w-5 h-5', color)} />
+                      </div>
                     </div>
-                  </div>
-                  <div className="pl-12 w-full">
-                     <div className="flex justify-between items-center">
-                        <p className="font-bold text-gray-900">{event.title}</p>
-                        <p className="text-xs text-gray-500">{format(new Date(event.date), 'MMM d, yyyy')}</p>
-                     </div>
-                     <p className="text-sm text-gray-700">{event.notes}</p>
-                  </div>
-               </div>
-            )
-          })}
-        </div>
+                    <div className="pl-12 w-full">
+                      <div className="flex justify-between items-center">
+                          <p className="font-bold text-gray-900">{event.title}</p>
+                          <p className="text-xs text-gray-500">{format(new Date(event.timestamp), 'MMM d, yyyy')}</p>
+                      </div>
+                      <p className="text-sm text-gray-700">{event.notes}</p>
+                    </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
+           <p className="text-gray-500 text-center py-4">No health events logged yet.</p>
+        )}
       </CardContent>
     </Card>
   );
 }
 
-function VitalsChart({ data }: { data: typeof healthData.weightTrend }) {
+function VitalsChart({ data }: { data: { date: string, weight: number }[] }) {
+  if (data.length < 2) return null;
   const formattedData = data.map(d => ({...d, date: format(new Date(d.date), 'MMM')}));
   return (
     <Card className="rounded-2xl shadow-md">
@@ -212,7 +205,7 @@ function EncouragementCard() {
         <Sparkles className="w-8 h-8 text-mint-green" />
         <div>
           <p className="font-bold text-gray-900">Great Job!</p>
-          <p className="text-sm text-gray-700">Buddy's health is in tip-top shape. Keep up the amazing care!</p>
+          <p className="text-sm text-gray-700">Your pet's health is in tip-top shape. Keep up the amazing care!</p>
         </div>
       </CardContent>
     </Card>
@@ -220,21 +213,24 @@ function EncouragementCard() {
 }
 
 export default function HealthPage() {
-  // Data is now fetched from hooks, but for now we keep the mock data for display
-  // In a real implementation, you'd use useHealthLogs() and usePetProfile()
-  const [loading, setLoading] = useState(true);
+  const { userId, petId } = useAuth();
+  const { healthLogs, loading: healthLogsLoading } = useHealthLogs(userId, petId);
+  const { reminders, loading: remindersLoading } = useReminders(userId, petId);
+  const loading = healthLogsLoading || remindersLoading;
+
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
-    // Simulate loading
-    const timer = setTimeout(() => setLoading(false), 1000);
-    return () => clearTimeout(timer);
   }, []);
 
-  const healthScore = useMemo(() => {
-    if (!isClient) return 0;
-    const lastVisitDays = differenceInDays(new Date(), new Date(healthData.vitals.lastVetVisit));
-    const lastWeightDays = differenceInDays(new Date(), new Date(healthData.weightTrend[healthData.weightTrend.length - 1].date));
+  const { healthScore, weightTrend } = useMemo(() => {
+    if (!isClient) return { healthScore: 0, weightTrend: [] };
+
+    const lastVetVisitLog = healthLogs.find(log => log.type === 'vet-visit');
+    const lastWeightLog = healthLogs.find(log => log.type === 'weight');
+
+    const lastVisitDays = lastVetVisitLog ? differenceInDays(new Date(), new Date(lastVetVisitLog.timestamp)) : 999;
+    const lastWeightDays = lastWeightLog ? differenceInDays(new Date(), new Date(lastWeightLog.timestamp)) : 999;
     
     let score = 0;
     if (lastVisitDays < 180) score += 50; // within 6 months
@@ -243,8 +239,13 @@ export default function HealthPage() {
     if (lastWeightDays < 30) score += 50; // within 1 month
     else if (lastWeightDays < 90) score += 25;
     
-    return Math.min(score, 100);
-  }, [isClient]);
+    const trend = healthLogs
+      .filter(log => log.type === 'weight' && typeof log.value === 'number')
+      .map(log => ({ date: new Date(log.timestamp).toISOString(), weight: log.value as number }))
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    return { healthScore: Math.min(score, 100), weightTrend: trend };
+  }, [isClient, healthLogs]);
 
   if (loading && isClient) {
       return (
@@ -279,13 +280,13 @@ export default function HealthPage() {
 
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
-               <VitalsChart data={healthData.weightTrend} />
-               <HealthTimeline events={healthData.timeline} />
+               <VitalsChart data={weightTrend} />
+               <HealthTimeline events={healthLogs} />
             </div>
              <div className="lg:col-span-1 space-y-6">
                 <HealthProgressRing score={healthScore} />
                 {healthScore >= 80 && isClient && <EncouragementCard />}
-                <RemindersCard reminders={healthData.reminders} />
+                <RemindersCard reminders={reminders} />
              </div>
         </main>
       </div>
