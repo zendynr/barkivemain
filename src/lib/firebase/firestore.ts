@@ -4,9 +4,12 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from './config';
-import type { FeedingLog, ActivityLog } from '@/lib/types';
+import type { FeedingLog, ActivityLog, Pet } from '@/lib/types';
 
 // Path helpers
+const getPetsCollection = (userId: string) =>
+    collection(db, 'users', userId, 'pets');
+
 const getFeedingLogsCollection = (userId: string, petId: string) =>
   collection(db, 'users', userId, 'pets', petId, 'feedingLogs');
 
@@ -15,6 +18,13 @@ const getActivityLogsCollection = (userId: string, petId: string) =>
 
 
 // --- Write Operations ---
+
+export const addPetProfile = (
+    userId: string,
+    petData: Omit<Pet, 'id'>
+) => {
+    return addDoc(getPetsCollection(userId), petData);
+}
 
 export const addFeedingLog = (
   userId: string,
