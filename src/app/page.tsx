@@ -1,10 +1,8 @@
 import { UserProfile } from '@/components/dashboard/UserProfile';
 import { ActivityTracker } from '@/components/dashboard/ActivityTracker';
-import { MemoriesCarousel } from '@/components/dashboard/MemoriesCarousel';
 import { CareTips } from '@/components/dashboard/CareTips';
 import { MealTracker } from '@/components/dashboard/MealTracker';
-import { MoodCard } from '@/components/dashboard/MoodCard';
-import { pet, activityLogs, memories, feedingLogs } from '@/lib/mock-data';
+import { pet, activityLogs, feedingLogs } from '@/lib/mock-data';
 
 export default function Home() {
   return (
@@ -21,17 +19,12 @@ export default function Home() {
           <div className="lg:col-span-2 flex flex-col gap-6">
             <UserProfile pet={pet} activityLogs={activityLogs} feedingLogs={feedingLogs} />
             <ActivityTracker activityLogs={activityLogs} />
-            <CareTips pet={pet} />
           </div>
 
           <div className="lg:col-span-1 flex flex-col gap-6">
-             <MoodCard activityLogs={activityLogs} feedingLogs={feedingLogs} petName={pet.name} />
             <MealTracker feedingLogs={feedingLogs} />
+            <CareTips pet={pet} />
           </div>
-        </div>
-
-        <div className="mt-6">
-          <MemoriesCarousel memories={memories} />
         </div>
       </div>
     </div>

@@ -1,4 +1,3 @@
-import { MemoriesCarousel } from '@/components/dashboard/MemoriesCarousel';
 import { memories } from '@/lib/mock-data';
 import { Card, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
@@ -43,7 +42,33 @@ export default function MemoriesPage() {
             </section>
         )}
 
-        <MemoriesCarousel memories={otherMemories.length > 0 ? otherMemories : memories} />
+        <section>
+             <h2 className="font-headline text-2xl font-semibold text-gray-900 mb-4">Gallery</h2>
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {(otherMemories.length > 0 ? otherMemories : memories).map((memory) => (
+                     <Card key={memory.id} className="rounded-2xl overflow-hidden group transition-all hover:shadow-lg">
+                        <CardContent className="p-0">
+                            <div className="aspect-w-4 aspect-h-3">
+                                <Image
+                                src={memory.imageUrl}
+                                alt={memory.caption}
+                                width={400}
+                                height={300}
+                                data-ai-hint={memory.aiHint}
+                                className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+                                />
+                            </div>
+                            <div className="p-3 bg-white">
+                                <p className="font-semibold text-gray-800 truncate text-sm">{memory.caption}</p>
+                                <p className="text-xs text-gray-500">
+                                {memory.timestamp.toLocaleDateString()}
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
+             </div>
+        </section>
       </div>
     </div>
   );
