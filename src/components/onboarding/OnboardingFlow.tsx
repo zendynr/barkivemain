@@ -12,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Dog, Cat, Bird, Rabbit, Bone, Rocket, Sofa, Weight, Cake, Upload, Sparkles, PawPrint, ChevronLeft, ChevronRight, Scale, Dumbbell, Clock, Info, ChevronsUpDown, Check } from 'lucide-react';
+import { Dog, Cat, Bird, Rabbit, Bone, Rocket, Sofa, Weight, Cake, Upload, Sparkles, PawPrint, ChevronLeft, ChevronRight, Scale, Dumbbell, Clock, Info } from 'lucide-react';
 import type { Pet } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Label } from '@/components/ui/label';
@@ -20,10 +20,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import { dogBreeds, catBreeds, otherBreeds } from '@/lib/data/breeds';
 
 
@@ -80,7 +76,7 @@ export function OnboardingFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [tempFavFoods, setTempFavFoods] = useState('');
-  const [comboboxOpen, setComboboxOpen] = useState(false);
+  const [breedSuggestions, setBreedSuggestions] = useState<(typeof dogBreeds)>([]);
 
   const totalSteps = 7;
 
@@ -179,6 +175,26 @@ export function OnboardingFlow() {
   const handleSpeciesChange = (species: keyof typeof speciesIcons) => {
     updateFormData('species', species);
     updateFormData('breed', ''); // Reset breed when species changes
+    setBreedSuggestions([]); // Clear suggestions
+  };
+
+  const handleBreedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    updateFormData('breed', value);
+
+    if (value && breeds.length > 1) {
+      const filteredBreeds = breeds.filter(breed => 
+        breed.label.toLowerCase().includes(value.toLowerCase())
+      );
+      setBreedSuggestions(filteredBreeds.slice(0, 5)); // Limit to 5 suggestions
+    } else {
+      setBreedSuggestions([]);
+    }
+  };
+  
+  const handleSuggestionClick = (breedLabel: string) => {
+    updateFormData('breed', breedLabel);
+    setBreedSuggestions([]);
   };
 
   const steps = [
@@ -210,51 +226,32 @@ export function OnboardingFlow() {
                 </div>
             </div>
             <div>
-                <Label>Breed</Label>
-                <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={comboboxOpen}
-                            className="w-full justify-between"
-                        >
-                            {formData.breed
-                                ? breeds.find((breed) => breed.label.toLowerCase() === formData.breed?.toLowerCase())?.label
-                                : "Select breed..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
-                        <Command>
-                            <CommandInput placeholder="Search breed..." />
-                            <CommandEmpty>No breed found.</CommandEmpty>
-                            <CommandGroup>
-                               <ScrollArea className="h-48">
-                                {breeds.map((breed) => (
-                                    <CommandItem
-                                        key={breed.value}
-                                        value={breed.value}
-                                        onSelect={(currentValue) => {
-                                            const selectedBreed = breeds.find(b => b.value === currentValue);
-                                            updateFormData('breed', selectedBreed ? selectedBreed.label : '');
-                                            setComboboxOpen(false);
-                                        }}
-                                    >
-                                        <Check
-                                            className={cn(
-                                                "mr-2 h-4 w-4",
-                                                formData.breed?.toLowerCase() === breed.label.toLowerCase() ? "opacity-100" : "opacity-0"
-                                            )}
-                                        />
-                                        {breed.label}
-                                    </CommandItem>
+                <Label htmlFor="breed">Breed</Label>
+                 <div className="relative">
+                    <Input
+                        id="breed"
+                        placeholder="e.g. Golden Retriever"
+                        value={formData.breed}
+                        onChange={handleBreedChange}
+                        onBlur={() => setTimeout(() => setBreedSuggestions([]), 100)}
+                        autoComplete="off"
+                    />
+                    {breedSuggestions.length > 0 && (
+                        <Card className="absolute z-10 w-full mt-1 bg-background shadow-lg border">
+                            <CardContent className="p-1">
+                                {breedSuggestions.map(breed => (
+                                <div
+                                    key={breed.value}
+                                    className="px-3 py-2 text-sm text-left cursor-pointer hover:bg-accent rounded-md"
+                                    onMouseDown={() => handleSuggestionClick(breed.label)}
+                                >
+                                    {breed.label}
+                                </div>
                                 ))}
-                               </ScrollArea>
-                            </CommandGroup>
-                        </Command>
-                    </PopoverContent>
-                </Popover>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
             </div>
         </div>
     </Step>,
