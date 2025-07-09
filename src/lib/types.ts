@@ -20,6 +20,7 @@ export interface ActivityLog {
   timestamp: Date;
   type: 'walk' | 'play' | 'training';
   duration: number; // in minutes
+  notes?: string;
 }
 
 export interface FeedingLog {

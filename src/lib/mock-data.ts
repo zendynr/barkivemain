@@ -69,10 +69,10 @@ export const memories: Memory[] = [
 ];
 
 export const activityLogs: ActivityLog[] = [
-  { id: 'act1', timestamp: new Date(new Date().setHours(8, 0, 0, 0)), type: 'walk', duration: 30 },
-  { id: 'act2', timestamp: new Date(new Date(yesterday).setHours(17, 0, 0, 0)), type: 'play', duration: 45 },
+  { id: 'act1', timestamp: new Date(new Date().setHours(8, 0, 0, 0)), type: 'walk', duration: 30, notes: 'A lovely morning walk.' },
+  { id: 'act2', timestamp: new Date(new Date(yesterday).setHours(17, 0, 0, 0)), type: 'play', duration: 45, notes: 'Played fetch with the new ball.' },
   { id: 'act3', timestamp: new Date(new Date(twoDaysAgo).setHours(8, 0, 0, 0)), type: 'walk', duration: 30 },
-  { id: 'act4', timestamp: new Date(new Date(threeDaysAgo).setHours(18, 0, 0, 0)), type: 'training', duration: 15 },
+  { id: 'act4', timestamp: new Date(new Date(threeDaysAgo).setHours(18, 0, 0, 0)), type: 'training', duration: 15, notes: "Practiced 'sit' and 'stay'." },
   { id: 'act5', timestamp: new Date(new Date(fourDaysAgo).setHours(9, 0, 0, 0)), type: 'walk', duration: 60 },
   { id: 'act6', timestamp: new Date(new Date(fiveDaysAgo).setHours(15, 0, 0, 0)), type: 'play', duration: 30 },
 ];
