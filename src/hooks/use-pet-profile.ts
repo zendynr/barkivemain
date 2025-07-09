@@ -11,6 +11,7 @@ export function usePetProfile(userId: string | null, petId: string | null) {
 
   useEffect(() => {
     if (!userId || !petId) {
+      setPet(null);
       setLoading(false);
       return;
     }
@@ -19,7 +20,14 @@ export function usePetProfile(userId: string | null, petId: string | null) {
 
     const unsubscribe = onSnapshot(petDocRef, (doc) => {
       if (doc.exists()) {
-        setPet({ id: doc.id, ...doc.data() } as Pet);
+        const data = doc.data();
+        setPet({
+             id: doc.id,
+             ...data,
+             // The onboarding flow adds these, but older pets might not have them
+             species: data.species || 'Dog',
+             activityLevel: data.activityLevel || 'Playful',
+        } as Pet);
       } else {
         console.log("No such pet!");
         setPet(null);

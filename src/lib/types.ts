@@ -3,9 +3,11 @@ import type { Timestamp } from 'firebase/firestore';
 export interface Pet {
   id: string;
   name: string;
+  species: 'Dog' | 'Cat' | 'Rabbit' | 'Bird' | 'Other';
   breed: string;
   age: number; // in years
   weight: number; // in kg
+  activityLevel: 'Couch Potato' | 'Playful' | 'Hyperactive';
   avatarUrl: string;
 }
 
