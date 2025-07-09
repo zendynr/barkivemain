@@ -1,3 +1,5 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export interface Pet {
   id: string;
   name: string;
@@ -11,13 +13,13 @@ export interface Memory {
   id: string;
   imageUrl: string;
   caption: string;
-  timestamp: Date;
+  timestamp: Date | Timestamp;
   aiHint?: string;
 }
 
 export interface ActivityLog {
   id: string;
-  timestamp: Date;
+  timestamp: Date | Timestamp;
   type: 'walk' | 'play' | 'training';
   duration: number; // in minutes
   notes?: string;
@@ -25,7 +27,7 @@ export interface ActivityLog {
 
 export interface FeedingLog {
   id: string;
-  timestamp: Date;
+  timestamp: Date | Timestamp;
   foodType: 'Kibble' | 'Wet Food' | 'Treat' | 'Other';
   quantity: string; // e.g., "1 cup", "1 can", "2 treats"
   notes?: string;

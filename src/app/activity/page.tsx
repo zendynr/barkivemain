@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { activityLogs as initialActivityLogs } from '@/lib/mock-data';
 import type { ActivityLog } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,6 +45,10 @@ import {
   RadialBar,
   PolarAngleAxis,
 } from 'recharts';
+import { useAuth } from '@/hooks/use-auth';
+import { useActivityLogs } from '@/hooks/use-activity-logs';
+import { addActivityLog } from '@/lib/firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
   type: z.enum(['walk', 'play', 'training']),
@@ -53,7 +56,7 @@ const formSchema = z.object({
   notes: z.string().optional(),
 });
 
-function AddActivityDialog({ onAddActivity, open, onOpenChange }: { onAddActivity: (newLog: Omit<ActivityLog, 'id' | 'timestamp'>) => void; open: boolean; onOpenChange: (open: boolean) => void; }) {
+function AddActivityDialog({ onAddActivity, open, onOpenChange }: { onAddActivity: (newLog: Omit<ActivityLog, 'id' | 'timestamp'>) => Promise<void>; open: boolean; onOpenChange: (open: boolean) => void; }) {
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -65,8 +68,8 @@ function AddActivityDialog({ onAddActivity, open, onOpenChange }: { onAddActivit
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    onAddActivity(values);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    await onAddActivity(values);
     toast({
       title: 'Success!',
       description: `Logged a ${values.duration} minute ${values.type}.`,
@@ -144,11 +147,21 @@ function AddActivityDialog({ onAddActivity, open, onOpenChange }: { onAddActivit
   );
 }
 
-function ActivityList({ logs, onAdd }: { logs: ActivityLog[]; onAdd: () => void }) {
+function ActivityList({ logs, onAdd, isLoading }: { logs: ActivityLog[]; onAdd: () => void; isLoading: boolean; }) {
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  if (isLoading) {
+      return (
+          <div className="space-y-4">
+              <Skeleton className="h-20 w-full rounded-2xl" />
+              <Skeleton className="h-20 w-full rounded-2xl" />
+              <Skeleton className="h-20 w-full rounded-2xl" />
+          </div>
+      )
+  }
 
   if (logs.length === 0) {
     return (
@@ -179,7 +192,7 @@ function ActivityList({ logs, onAdd }: { logs: ActivityLog[]; onAdd: () => void 
             <div className="flex items-center gap-2 text-sm text-gray-500 ml-4 pt-1">
               <Clock className="w-4 h-4" />
               <span>
-                {isClient ? log.timestamp.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null}
+                {isClient ? new Date(log.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null}
               </span>
             </div>
           </CardContent>
@@ -392,16 +405,22 @@ function BadgesCard({ logs }: { logs: ActivityLog[] }) {
 }
 
 export default function ActivityPage() {
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(initialActivityLogs);
+  const { userId, petId } = useAuth();
+  const { activityLogs, loading } = useActivityLogs(userId, petId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
-  const handleAddActivity = (newLogData: Omit<ActivityLog, 'id' | 'timestamp'>) => {
-    const newLog: ActivityLog = {
-      ...newLogData,
-      id: `act${Date.now()}`,
-      timestamp: new Date(),
-    };
-    setActivityLogs((prevLogs) => [newLog, ...prevLogs]);
+  const handleAddActivity = async (newLogData: Omit<ActivityLog, 'id' | 'timestamp'>) => {
+    if (!userId || !petId) return;
+    try {
+      await addActivityLog(userId, petId, newLogData);
+    } catch (error) {
+      console.error("Failed to add activity log: ", error);
+      // Optionally show an error toast to the user
+    }
   };
 
   return (
@@ -434,7 +453,7 @@ export default function ActivityPage() {
 
           <div>
              <h2 className="font-headline text-2xl font-semibold text-gray-900 mb-4">Recent Logs</h2>
-            <ActivityList logs={activityLogs} onAdd={() => setIsDialogOpen(true)} />
+            <ActivityList logs={activityLogs} onAdd={() => setIsDialogOpen(true)} isLoading={loading} />
           </div>
         </main>
       </div>

@@ -29,7 +29,9 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
+import { Skeleton } from '@/components/ui/skeleton';
 
+// This data is now considered mock. In a real app, this would come from Firestore.
 const healthData = {
   vitals: {
     weight: 30, // in kg
@@ -46,7 +48,7 @@ const healthData = {
     { id: 1, type: 'vet-visit', date: '2024-05-20', title: 'Annual Checkup', notes: 'All clear, healthy check-up.' },
     { id: 2, type: 'vaccination', date: '2024-01-15', title: 'Rabies & DHPP', notes: 'Booster shots administered.' },
     { id: 3, type: 'grooming', date: '2024-06-15', title: 'Summer Cut', notes: 'Feeling fresh and clean.' },
-    { id: 4, type: 'weight', date: '2024-05-20', title: 'Weigh-in', notes: 'Stable weight at 30kg.' },
+    { id: 4, type: 'weight', date: '2024-5-20', title: 'Weigh-in', notes: 'Stable weight at 30kg.' },
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
   weightTrend: [
     { date: '2024-01-01', weight: 29.5 },
@@ -218,9 +220,15 @@ function EncouragementCard() {
 }
 
 export default function HealthPage() {
+  // Data is now fetched from hooks, but for now we keep the mock data for display
+  // In a real implementation, you'd use useHealthLogs() and usePetProfile()
+  const [loading, setLoading] = useState(true);
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
+    // Simulate loading
+    const timer = setTimeout(() => setLoading(false), 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   const healthScore = useMemo(() => {
@@ -237,6 +245,29 @@ export default function HealthPage() {
     
     return Math.min(score, 100);
   }, [isClient]);
+
+  if (loading && isClient) {
+      return (
+         <div className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
+            <div className="max-w-7xl mx-auto">
+                <header className="mb-8">
+                    <Skeleton className="h-10 w-1/3 rounded-lg" />
+                    <Skeleton className="h-4 w-1/2 mt-2 rounded-lg" />
+                </header>
+                <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 space-y-6">
+                        <Skeleton className="h-64 w-full rounded-2xl" />
+                        <Skeleton className="h-96 w-full rounded-2xl" />
+                    </div>
+                    <div className="lg:col-span-1 space-y-6">
+                        <Skeleton className="h-80 w-full rounded-2xl" />
+                        <Skeleton className="h-72 w-full rounded-2xl" />
+                    </div>
+                </main>
+            </div>
+        </div>
+      )
+  }
 
   return (
     <div className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">

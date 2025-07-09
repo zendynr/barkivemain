@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { feedingLogs as initialFeedingLogs } from '@/lib/mock-data';
 import type { FeedingLog } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -41,7 +40,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { BowlIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';
-
+import { useAuth } from '@/hooks/use-auth';
+import { useFeedingLogs } from '@/hooks/use-feeding-logs';
+import { addFeedingLog } from '@/lib/firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const formSchema = z.object({
   foodType: z.enum(['Kibble', 'Wet Food', 'Treat', 'Other']),
@@ -58,7 +60,7 @@ const reactionIcons: Record<Reaction, React.ElementType> = {
   displeased: Frown,
 };
 
-function AddFeedingDialog({ onAddFeeding, open, onOpenChange }: { onAddFeeding: (newLog: Omit<FeedingLog, 'id' | 'timestamp'>) => void; open: boolean; onOpenChange: (open: boolean) => void; }) {
+function AddFeedingDialog({ onAddFeeding, open, onOpenChange }: { onAddFeeding: (newLog: Omit<FeedingLog, 'id' | 'timestamp'>) => Promise<void>; open: boolean; onOpenChange: (open: boolean) => void; }) {
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -71,8 +73,8 @@ function AddFeedingDialog({ onAddFeeding, open, onOpenChange }: { onAddFeeding: 
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    onAddFeeding({
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    await onAddFeeding({
       ...values,
       foodType: values.foodType as FeedingLog['foodType'],
       reaction: values.reaction as Reaction | undefined,
@@ -193,7 +195,18 @@ function AddFeedingDialog({ onAddFeeding, open, onOpenChange }: { onAddFeeding: 
   );
 }
 
-function FeedingList({ logs, onAdd }: { logs: FeedingLog[], onAdd: () => void }) {
+function FeedingList({ logs, onAdd, isLoading }: { logs: FeedingLog[], onAdd: () => void, isLoading: boolean }) {
+  
+  if (isLoading) {
+    return (
+        <div className="space-y-4">
+            <Skeleton className="h-24 w-full rounded-2xl" />
+            <Skeleton className="h-24 w-full rounded-2xl" />
+            <Skeleton className="h-24 w-full rounded-2xl" />
+        </div>
+    )
+  }
+
   if (logs.length === 0) {
     return (
       <div className="text-center py-20 flex flex-col items-center gap-4 bg-gray-50/50 rounded-2xl border border-dashed">
@@ -208,7 +221,7 @@ function FeedingList({ logs, onAdd }: { logs: FeedingLog[], onAdd: () => void })
     );
   }
 
-  const sortedLogs = [...logs].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   return (
     <div className="space-y-4">
@@ -231,7 +244,7 @@ function FeedingList({ logs, onAdd }: { logs: FeedingLog[], onAdd: () => void })
                 <div className="flex items-center gap-2 text-sm text-gray-500 pt-1">
                     <Clock className="w-4 h-4" />
                     <span>
-                    {log.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                 </div>
               </div>
@@ -367,17 +380,18 @@ function MealStatusTracker({ logs }: { logs: FeedingLog[] }) {
 }
 
 export default function FeedingPage() {
-  const [feedingLogs, setFeedingLogs] = useState<FeedingLog[]>(initialFeedingLogs);
+  const { userId, petId } = useAuth();
+  const { feedingLogs, loading } = useFeedingLogs(userId, petId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showTreats, setShowTreats] = useState(true);
 
-  const handleAddFeeding = (newLogData: Omit<FeedingLog, 'id' | 'timestamp'>) => {
-    const newLog: FeedingLog = {
-      ...newLogData,
-      id: `feed${Date.now()}`,
-      timestamp: new Date(),
-    };
-    setFeedingLogs((prevLogs) => [newLog, ...prevLogs]);
+  const handleAddFeeding = async (newLogData: Omit<FeedingLog, 'id' | 'timestamp'>) => {
+    if (!userId || !petId) return;
+    try {
+        await addFeedingLog(userId, petId, newLogData);
+    } catch(e) {
+        console.error("Failed to add feeding log:", e);
+    }
   };
 
   const filteredLogs = useMemo(() => {
@@ -419,7 +433,7 @@ export default function FeedingPage() {
                       <Bone className="w-4 h-4" /> Show Treats</Label>
                 </div>
             </div>
-          <FeedingList logs={filteredLogs} onAdd={() => setIsDialogOpen(true)} />
+          <FeedingList logs={filteredLogs} onAdd={() => setIsDialogOpen(true)} isLoading={loading}/>
         </main>
       </div>
     </div>
