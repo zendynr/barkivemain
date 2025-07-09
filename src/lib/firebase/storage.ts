@@ -14,3 +14,17 @@ export const uploadPetAvatar = async (userId: string, file: File): Promise<strin
     throw error;
   }
 };
+
+export const uploadMemoryImage = async (userId: string, petId: string, file: File): Promise<string> => {
+  const filePath = `users/${userId}/pets/${petId}/memories/${file.name}_${new Date().getTime()}`;
+  const storageRef = ref(storage, filePath);
+
+  try {
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
+  } catch (error) {
+    console.error("Error uploading memory image: ", error);
+    throw error;
+  }
+};

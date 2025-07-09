@@ -177,7 +177,7 @@ function ActivityList({ logs, onAdd, isLoading }: { logs: ActivityLog[]; onAdd: 
     );
   }
 
-  const sortedLogs = [...logs].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   return (
     <div className="space-y-4">
@@ -408,18 +408,26 @@ export default function ActivityPage() {
   const { userId, petId } = useAuth();
   const { activityLogs, loading } = useActivityLogs(userId, petId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  const { toast } = useToast();
 
   const handleAddActivity = async (newLogData: Omit<ActivityLog, 'id' | 'timestamp'>) => {
-    if (!userId || !petId) return;
+    if (!userId || !petId) {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No active pet selected.',
+      });
+      return;
+    }
     try {
       await addActivityLog(userId, petId, newLogData);
     } catch (error) {
       console.error("Failed to add activity log: ", error);
-      // Optionally show an error toast to the user
+      toast({
+        variant: 'destructive',
+        title: 'Error logging activity',
+        description: 'Could not save the activity log. Please try again.',
+      });
     }
   };
 

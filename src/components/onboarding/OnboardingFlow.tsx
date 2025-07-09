@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/use-auth';
@@ -9,13 +9,21 @@ import { uploadPetAvatar } from '@/lib/firebase/storage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Dog, Cat, Bird, Rabbit, Bone, Rocket, Sofa, Weight, Cake, Upload, Sparkles, PawPrint, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Dog, Cat, Bird, Rabbit, Bone, Rocket, Sofa, Weight, Cake, Upload, Sparkles, PawPrint, ChevronLeft, ChevronRight, Scale, Dumbbell, Clock, Info } from 'lucide-react';
 import type { Pet } from '@/lib/types';
-import ReactConfetti from 'react-confetti';
+import dynamic from 'next/dynamic';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { dogBreeds, catBreeds, otherBreeds } from '@/lib/data/breeds';
 
+
+const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false });
 
 type OnboardingData = Omit<Pet, 'id'>;
 
@@ -41,7 +49,20 @@ const defaultPetData: OnboardingData = {
     weight: 30,
     activityLevel: 'Playful',
     avatarUrl: 'https://placehold.co/128x128.png',
+    nickname: '',
+    feedingSchedule: ['morning', 'evening'],
+    trainingGoal: 60,
+    unitPreference: 'metric',
+    isFirstPet: true,
+    favoriteFoods: [],
+    allergies: '',
 };
+
+const feedingScheduleOptions = [
+  { id: 'morning', label: 'Morning' },
+  { id: 'afternoon', label: 'Afternoon' },
+  { id: 'evening', label: 'Evening' },
+] as const;
 
 export function OnboardingFlow() {
   const router = useRouter();
@@ -53,6 +74,8 @@ export function OnboardingFlow() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(formData.avatarUrl || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [tempFavFoods, setTempFavFoods] = useState('');
+  const [breedSuggestions, setBreedSuggestions] = useState<(typeof dogBreeds)>([]);
 
   const totalSteps = 7;
 
@@ -71,6 +94,17 @@ export function OnboardingFlow() {
     }
   };
 
+  const handleFeedingScheduleChange = (checked: boolean, scheduleId: 'morning' | 'afternoon' | 'evening') => {
+    const currentSchedule = formData.feedingSchedule || [];
+    if (checked) {
+      if (!currentSchedule.includes(scheduleId)) {
+        updateFormData('feedingSchedule', [...currentSchedule, scheduleId]);
+      }
+    } else {
+      updateFormData('feedingSchedule', currentSchedule.filter(id => id !== scheduleId));
+    }
+  }
+
   const handleSubmit = async () => {
     if (!userId || !formData.name || !formData.species || !formData.breed || formData.age === undefined || formData.weight === undefined || !formData.activityLevel) {
         toast({ variant: 'destructive', title: 'Missing Information', description: 'Please complete all fields before submitting.' });
@@ -79,7 +113,7 @@ export function OnboardingFlow() {
 
     setIsSubmitting(true);
     try {
-        let avatarUrl = defaultPetData.avatarUrl;
+        let avatarUrl = formData.avatarUrl || defaultPetData.avatarUrl;
         if (avatarFile) {
             avatarUrl = await uploadPetAvatar(userId, avatarFile);
         }
@@ -92,6 +126,13 @@ export function OnboardingFlow() {
             weight: formData.weight,
             activityLevel: formData.activityLevel,
             avatarUrl: avatarUrl,
+            nickname: formData.nickname,
+            feedingSchedule: formData.feedingSchedule,
+            trainingGoal: formData.trainingGoal,
+            unitPreference: formData.unitPreference,
+            isFirstPet: formData.isFirstPet,
+            favoriteFoods: tempFavFoods.split(',').map(s => s.trim()).filter(Boolean),
+            allergies: formData.allergies,
         };
 
         await addPetProfile(userId, finalData);
@@ -100,82 +141,198 @@ export function OnboardingFlow() {
           toast({ title: 'Welcome!', description: `${formData.name} has been added to your pack.` });
           router.push('/');
         }, 3000); // Let confetti run for a bit
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to create pet profile:", error);
-        toast({ variant: 'destructive', title: 'Submission Error', description: 'Could not save pet profile. Please try again.' });
+        let description = 'Could not save pet profile. Please try again.';
+        if (error.code) {
+          switch (error.code) {
+            case 'permission-denied':
+            case 'unauthenticated':
+              description = 'Please check your Firestore security rules. You may not have permission to write data.';
+              break;
+            case 'failed-precondition':
+              description = 'A backend service is not enabled. Please ensure Firestore and Storage are enabled in your Firebase project console.';
+              break;
+          }
+        }
+        toast({ variant: 'destructive', title: 'Submission Error', description });
         setIsSubmitting(false);
     }
+  };
+
+  const breeds = useMemo(() => {
+    switch (formData.species) {
+      case 'Dog':
+        return dogBreeds;
+      case 'Cat':
+        return catBreeds;
+      default:
+        return otherBreeds;
+    }
+  }, [formData.species]);
+
+  const handleSpeciesChange = (species: keyof typeof speciesIcons) => {
+    updateFormData('species', species);
+    updateFormData('breed', ''); // Reset breed when species changes
+    setBreedSuggestions([]); // Clear suggestions
+  };
+
+  const handleBreedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    updateFormData('breed', value);
+
+    if (value && breeds.length > 1) {
+      const filteredBreeds = breeds.filter(breed => 
+        breed.label.toLowerCase().includes(value.toLowerCase())
+      );
+      setBreedSuggestions(filteredBreeds.slice(0, 5)); // Limit to 5 suggestions
+    } else {
+      setBreedSuggestions([]);
+    }
+  };
+  
+  const handleSuggestionClick = (breedLabel: string) => {
+    updateFormData('breed', breedLabel);
+    setBreedSuggestions([]);
   };
 
   const steps = [
     // Welcome
     <WelcomeScreen onNext={handleNext} />,
-    // Name
-    <Step title="What's your pet's name?">
-      <Input
-        placeholder="e.g. Buddy"
-        value={formData.name}
-        onChange={e => updateFormData('name', e.target.value)}
-        className="text-center text-2xl h-14"
-      />
-      <p className="text-gray-600 mt-4 text-xl">My name is: <span className="font-bold">{formData.name || '...'}</span></p>
-    </Step>,
-    // Species
-    <Step title="What kind of pet are they?">
-        <div className="grid grid-cols-2 gap-4">
-            {(Object.keys(speciesIcons) as (keyof typeof speciesIcons)[]).map(species => {
-                const Icon = speciesIcons[species];
-                return (
-                    <Card
-                        key={species}
-                        onClick={() => { updateFormData('species', species); handleNext(); }}
-                        className={`p-4 text-center cursor-pointer transition-all duration-200 ${formData.species === species ? 'ring-2 ring-primary shadow-lg scale-105' : 'hover:shadow-md'}`}
-                    >
-                        <Icon className="w-12 h-12 mx-auto text-gray-700" />
-                        <p className="mt-2 font-semibold">{species}</p>
-                    </Card>
-                )
-            })}
-        </div>
-    </Step>,
-    // Breed & Age
-    <Step title="Tell us a bit more.">
-        <div className="space-y-6">
+    // Primary Info
+    <Step title="Let's start with the basics.">
+        <div className="space-y-6 w-full">
             <div>
-                <label className="font-semibold text-gray-700">Breed</label>
-                <Input placeholder="e.g. Golden Retriever" value={formData.breed} onChange={e => updateFormData('breed', e.target.value)} />
+                <Label htmlFor="name">Pet's Name</Label>
+                <Input id="name" placeholder="e.g. Buddy" value={formData.name} onChange={e => updateFormData('name', e.target.value)} />
             </div>
             <div>
-                 <label className="font-semibold text-gray-700">Age: <span className="text-primary font-bold">{formData.age} years</span></label>
+                 <Label>Species</Label>
+                 <div className="grid grid-cols-3 gap-2 pt-2">
+                    {(Object.keys(speciesIcons) as (keyof typeof speciesIcons)[]).map(species => {
+                        const Icon = speciesIcons[species];
+                        return (
+                            <Card
+                                key={species}
+                                onClick={() => handleSpeciesChange(species)}
+                                className={`p-2 text-center cursor-pointer transition-all duration-200 ${formData.species === species ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'}`}
+                            >
+                                <Icon className="w-8 h-8 mx-auto text-gray-700" />
+                                <p className="mt-1 text-xs font-semibold">{species}</p>
+                            </Card>
+                        )
+                    })}
+                </div>
+            </div>
+            <div>
+                <Label htmlFor="breed">Breed</Label>
+                 <div className="relative">
+                    <Input
+                        id="breed"
+                        placeholder="e.g. Golden Retriever"
+                        value={formData.breed}
+                        onChange={handleBreedChange}
+                        onBlur={() => setTimeout(() => setBreedSuggestions([]), 100)}
+                        autoComplete="off"
+                    />
+                    {breedSuggestions.length > 0 && (
+                        <Card className="absolute z-10 w-full mt-1 bg-background shadow-lg border">
+                            <CardContent className="p-1">
+                                {breedSuggestions.map(breed => (
+                                <div
+                                    key={breed.value}
+                                    className="px-3 py-2 text-sm text-left cursor-pointer hover:bg-accent rounded-md"
+                                    onMouseDown={() => handleSuggestionClick(breed.label)}
+                                >
+                                    {breed.label}
+                                </div>
+                                ))}
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            </div>
+        </div>
+    </Step>,
+    // Vitals
+    <Step title="Tell us about their vitals.">
+        <div className="space-y-6 w-full">
+            <div>
+                 <Label>Age: <span className="text-primary font-bold">{formData.age} years</span></Label>
                 <Slider defaultValue={[5]} value={[formData.age || 5]} max={30} step={1} onValueChange={([val]) => updateFormData('age', val)} />
             </div>
+            <div>
+                 <Label>Weight: <span className="text-primary font-bold">{formData.weight} {formData.unitPreference === 'metric' ? 'kg' : 'lbs'}</span></Label>
+                <Slider defaultValue={[30]} value={[formData.weight || 30]} max={100} step={1} onValueChange={([val]) => updateFormData('weight', val)} />
+            </div>
+             <div>
+                <Label>Units</Label>
+                <RadioGroup
+                    defaultValue="metric"
+                    value={formData.unitPreference}
+                    onValueChange={(val) => updateFormData('unitPreference', val)}
+                    className="flex gap-4 pt-2"
+                >
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="metric" id="metric" />
+                        <Label htmlFor="metric">Metric (kg)</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="imperial" id="imperial" />
+                        <Label htmlFor="imperial">Imperial (lbs)</Label>
+                    </div>
+                </RadioGroup>
+            </div>
         </div>
     </Step>,
-    // Weight
-    <Step title="How much do they weigh?">
-        <div className="flex flex-col items-center gap-4">
-            <Weight className="w-16 h-16 text-gray-400" />
-            <p className="text-3xl font-bold">{formData.weight} kg</p>
-            <Slider defaultValue={[30]} value={[formData.weight || 30]} max={100} step={1} onValueChange={([val]) => updateFormData('weight', val)} />
+    // Lifestyle
+    <Step title="What's their lifestyle like?">
+        <div className="space-y-6 w-full">
+            <div>
+                <Label>Energy Level</Label>
+                <div className="grid grid-cols-1 gap-2 pt-2">
+                    {(Object.keys(activityIcons) as (keyof typeof activityIcons)[]).map(level => {
+                        const Icon = activityIcons[level];
+                        return (
+                            <Card
+                                key={level}
+                                onClick={() => updateFormData('activityLevel', level)}
+                                className={`p-3 cursor-pointer transition-all duration-200 flex items-center gap-4 ${formData.activityLevel === level ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'}`}
+                            >
+                                <Icon className="w-6 h-6 text-gray-700" />
+                                <p className="font-semibold text-sm">{level}</p>
+                            </Card>
+                        )
+                    })}
+                </div>
+            </div>
+             <div>
+                <Label>Feeding Schedule</Label>
+                 <div className="flex flex-col gap-2 pt-2">
+                  {feedingScheduleOptions.map((item) => (
+                    <div key={item.id} className="flex items-center space-x-2">
+                       <Checkbox
+                        id={item.id}
+                        checked={(formData.feedingSchedule || []).includes(item.id)}
+                        onCheckedChange={(checked) => handleFeedingScheduleChange(!!checked, item.id)}
+                      />
+                      <label htmlFor={item.id} className="text-sm font-medium leading-none">
+                        {item.label}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+            </div>
         </div>
     </Step>,
-    // Activity Level
-    <Step title="What's their energy level?">
-        <div className="grid grid-cols-1 gap-4">
-            {(Object.keys(activityIcons) as (keyof typeof activityIcons)[]).map(level => {
-                const Icon = activityIcons[level];
-                return (
-                     <Card
-                        key={level}
-                        onClick={() => { updateFormData('activityLevel', level); handleNext(); }}
-                        className={`p-4 cursor-pointer transition-all duration-200 flex items-center gap-4 ${formData.activityLevel === level ? 'ring-2 ring-primary shadow-lg' : 'hover:shadow-md'}`}
-                    >
-                        <Icon className="w-8 h-8 text-gray-700" />
-                        <p className="font-semibold">{level}</p>
-                    </Card>
-                )
-            })}
-        </div>
+    // Goals
+    <Step title="Set a weekly training goal">
+      <div className="flex flex-col items-center gap-4 w-full">
+        <Dumbbell className="w-16 h-16 text-gray-400" />
+        <p className="text-3xl font-bold">{formData.trainingGoal} minutes</p>
+        <p className="text-gray-600">per week</p>
+        <Slider defaultValue={[60]} value={[formData.trainingGoal || 60]} max={300} step={15} onValueChange={([val]) => updateFormData('trainingGoal', val)} />
+      </div>
     </Step>,
     // Avatar
     <Step title="Upload a profile picture!">
@@ -194,22 +351,49 @@ export function OnboardingFlow() {
             <Button variant="ghost" onClick={handleNext}>Skip for now</Button>
         </div>
     </Step>,
+    // Optional Details
+    <Step title="Any other details? (Optional)">
+      <div className="space-y-4 w-full text-left">
+          <div>
+            <Label htmlFor="nickname">Nickname</Label>
+            <Input id="nickname" value={formData.nickname} onChange={(e) => updateFormData('nickname', e.target.value)} placeholder="e.g., Bud" />
+          </div>
+          <div>
+            <Label htmlFor="allergies">Allergies or health flags</Label>
+            <Textarea id="allergies" value={formData.allergies} onChange={(e) => updateFormData('allergies', e.target.value)} placeholder="e.g., Pollen, sensitive stomach" />
+          </div>
+           <div>
+            <Label htmlFor="favoriteFoods">Favorite foods (comma-separated)</Label>
+            <Input id="favoriteFoods" value={tempFavFoods} onChange={(e) => setTempFavFoods(e.target.value)} placeholder="e.g., Chicken, Peanut Butter" />
+          </div>
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch id="first-pet" checked={formData.isFirstPet} onCheckedChange={(val) => updateFormData('isFirstPet', val)} />
+            <Label htmlFor="first-pet">Is this your first pet?</Label>
+          </div>
+      </div>
+    </Step>,
     // Review
     <Step title="Does this look right?">
-        <Card className="p-4 shadow-lg">
-            <CardContent className="flex items-center gap-4">
-                 <Avatar className="h-20 w-20">
+        <Card className="p-4 shadow-lg w-full">
+            <CardHeader className="p-2">
+              <CardTitle className="flex items-center gap-4">
+                <Avatar className="h-20 w-20">
                     <AvatarImage src={avatarPreview || undefined} alt={formData.name} />
                     <AvatarFallback>{formData.name?.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                    <h3 className="font-bold text-xl">{formData.name}</h3>
-                    <p className="text-gray-600">{formData.breed}</p>
-                    <div className="flex gap-4 text-sm mt-2">
-                        <span className="flex items-center gap-1"><Cake className="w-4 h-4" /> {formData.age} yrs</span>
-                        <span className="flex items-center gap-1"><Weight className="w-4 h-4" /> {formData.weight} kg</span>
-                    </div>
+                    <h3 className="font-bold text-xl">{formData.name} {formData.nickname && `(${formData.nickname})`}</h3>
+                    <p className="text-gray-600 text-base">{formData.breed}</p>
                 </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="text-left text-sm space-y-2 pt-4">
+                <div className="flex items-center gap-2"><Cake className="w-4 h-4 text-gray-500" /> {formData.age} years old</div>
+                <div className="flex items-center gap-2"><Weight className="w-4 h-4 text-gray-500" /> {formData.weight} {formData.unitPreference === 'metric' ? 'kg' : 'lbs'}</div>
+                <div className="flex items-center gap-2"><Bone className="w-4 h-4 text-gray-500" /> Activity: {formData.activityLevel}</div>
+                <div className="flex items-center gap-2"><Clock className="w-4 h-4 text-gray-500" /> Eats at: {(formData.feedingSchedule || []).join(', ')}</div>
+                <div className="flex items-center gap-2"><Dumbbell className="w-4 h-4 text-gray-500" /> Training goal: {formData.trainingGoal} mins/week</div>
+                {formData.allergies && <div className="flex items-start gap-2"><Info className="w-4 h-4 text-red-500 mt-0.5" /> Allergies: {formData.allergies}</div>}
             </CardContent>
         </Card>
     </Step>
@@ -218,7 +402,7 @@ export function OnboardingFlow() {
   if(showConfetti) {
       return (
           <div className="w-full max-w-md text-center">
-              <ReactConfetti recycle={false} numberOfPieces={300} />
+              {showConfetti && <ReactConfetti recycle={false} numberOfPieces={300} />}
               <Sparkles className="w-24 h-24 mx-auto text-yellow-400 animate-pulse"/>
               <h2 className="text-3xl font-bold mt-4">All set!</h2>
               <p className="text-lg text-gray-700 mt-2">{formData.name} is ready for their journey!</p>
@@ -280,7 +464,7 @@ function WelcomeScreen({onNext}: {onNext: () => void}) {
 
 function Step({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center text-center gap-4 min-h-[300px]">
+    <div className="flex flex-col items-center text-center gap-4 min-h-[420px]">
       <h2 className="text-2xl font-bold">{title}</h2>
       {children}
     </div>

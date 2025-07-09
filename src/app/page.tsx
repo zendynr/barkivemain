@@ -1,41 +1,23 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
+import { useActivityLogs } from '@/hooks/use-activity-logs';
+import { useFeedingLogs } from '@/hooks/use-feeding-logs';
 import { UserProfile } from '@/components/dashboard/UserProfile';
 import { ActivityTracker } from '@/components/dashboard/ActivityTracker';
 import { CareTips } from '@/components/dashboard/CareTips';
 import { MealTracker } from '@/components/dashboard/MealTracker';
-import { useAuth } from '@/hooks/use-auth';
-import { usePets } from '@/hooks/use-pets';
-import { useActivityLogs } from '@/hooks/use-activity-logs';
-import { useFeedingLogs } from '@/hooks/use-feeding-logs';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
-  const router = useRouter();
-  const { userId } = useAuth();
-  const { pets, loading: petsLoading } = usePets(userId);
-  const [activePetId, setActivePetId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!petsLoading) {
-      if (pets.length === 0) {
-        router.push('/onboarding');
-      } else {
-        setActivePetId(pets[0].id);
-      }
-    }
-  }, [pets, petsLoading, router]);
-
-  const activePet = pets.find(p => p.id === activePetId);
+  const { userId, activePet, petsLoading } = useAuth();
   
-  const { activityLogs, loading: activityLoading } = useActivityLogs(userId, activePetId);
-  const { feedingLogs, loading: feedingLoading } = useFeedingLogs(userId, activePetId);
+  const { activityLogs, loading: activityLoading } = useActivityLogs(userId, activePet?.id);
+  const { feedingLogs, loading: feedingLoading } = useFeedingLogs(userId, activePet?.id);
   
-  const isLoading = petsLoading || (activePetId && (activityLoading || feedingLoading));
+  const isLoading = petsLoading || !activePet || activityLoading || feedingLoading;
 
-  if (isLoading || !activePetId) {
+  if (isLoading) {
     return (
       <div className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
         <div className="max-w-7xl mx-auto">
@@ -59,7 +41,7 @@ export default function Home() {
   }
 
   if (!activePet) {
-     // This state is temporary while redirecting
+    // This can happen briefly during loading/redirects
     return null;
   }
 

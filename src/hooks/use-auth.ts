@@ -1,15 +1,11 @@
 'use client';
 
-// This is a mock authentication hook.
-// In a real application, this would be replaced with a proper authentication solution
-// that provides the currently logged-in user's ID.
+import { useAppContext } from '@/contexts/AuthContext';
+
+// This hook is now a simple wrapper around the context consumer.
+// This makes it easy to swap out the auth implementation in the future
+// without refactoring components that use this hook.
 export function useAuth() {
-  return {
-    // For demonstration purposes, we're using a hardcoded user ID.
-    // Replace this with your actual user management logic.
-    userId: 'mock-user-id',
-    // You can also include loading and error states for a more robust implementation.
-    // loading: false,
-    // error: null,
-  };
+  const { user, userId, loading, activePet, pets, setActivePetId, petsLoading } = useAppContext();
+  return { user, userId, loading, activePet, petId: activePet?.id || null, pets, setActivePetId, petsLoading };
 }

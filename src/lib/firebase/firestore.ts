@@ -2,9 +2,12 @@ import {
   collection,
   addDoc,
   serverTimestamp,
+  Timestamp,
+  doc,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from './config';
-import type { FeedingLog, ActivityLog, Pet } from '@/lib/types';
+import type { FeedingLog, ActivityLog, Pet, Memory, HealthLog, Reminder } from '@/lib/types';
 
 // Path helpers
 const getPetsCollection = (userId: string) =>
@@ -15,6 +18,15 @@ const getFeedingLogsCollection = (userId: string, petId: string) =>
 
 const getActivityLogsCollection = (userId: string, petId: string) =>
     collection(db, 'users', userId, 'pets', petId, 'activityLogs');
+
+const getMemoriesCollection = (userId: string, petId: string) =>
+  collection(db, 'users', userId, 'pets', petId, 'memories');
+
+const getHealthLogsCollection = (userId: string, petId: string) =>
+    collection(db, 'users', userId, 'pets', petId, 'healthLogs');
+
+const getRemindersCollection = (userId: string, petId: string) =>
+    collection(db, 'users', userId, 'pets', petId, 'reminders');
 
 
 // --- Write Operations ---
@@ -49,6 +61,47 @@ export const addActivityLog = (
     };
     return addDoc(getActivityLogsCollection(userId, petId), dataWithTimestamp);
 };
+
+export const addMemory = (
+  userId: string,
+  petId: string,
+  memoryData: Omit<Memory, 'id' | 'timestamp'>
+) => {
+  const dataWithTimestamp = {
+    ...memoryData,
+    timestamp: serverTimestamp(),
+  };
+  return addDoc(getMemoriesCollection(userId, petId), dataWithTimestamp);
+}
+
+export const addHealthLog = (
+    userId: string,
+    petId: string,
+    logData: Omit<HealthLog, 'id'>
+) => {
+    // Firestore handles JS Date object conversion to Timestamp automatically.
+    return addDoc(getHealthLogsCollection(userId, petId), logData);
+}
+
+export const addReminder = (
+    userId: string,
+    petId: string,
+    reminderData: Omit<Reminder, 'id'>
+) => {
+    return addDoc(getRemindersCollection(userId, petId), {
+      ...reminderData,
+    });
+}
+
+export const deleteReminder = (
+    userId: string,
+    petId: string,
+    reminderId: string,
+) => {
+    const reminderDocRef = doc(db, 'users', userId, 'pets', petId, 'reminders', reminderId);
+    return deleteDoc(reminderDocRef);
+}
+
 
 // --- Read Operations (onSnapshot for real-time updates) ---
 // Note: Real-time listeners are implemented in the hooks for better component lifecycle management.

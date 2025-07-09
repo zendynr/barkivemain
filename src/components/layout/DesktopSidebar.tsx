@@ -11,8 +11,11 @@ import {
   SidebarMenuButton,
   SidebarFooter,
   SidebarTrigger,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Home, Utensils, Footprints, Camera, Syringe, Dog } from 'lucide-react';
+import { UserMenu } from './UserMenu';
+
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: Home },
@@ -28,11 +31,16 @@ export function DesktopSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2">
-            <div className="bg-mint-green p-2 rounded-lg">
-                <Dog className="text-primary-foreground" />
+        <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+                <div className="bg-mint-green p-2 rounded-lg">
+                    <Dog className="text-primary-foreground" />
+                </div>
+                <h1 className="font-headline text-xl font-bold">Barkive</h1>
             </div>
-            <h1 className="font-headline text-xl font-bold">Barkive</h1>
+             <div className="group-data-[collapsible=icon]:hidden">
+                <UserMenu />
+            </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -58,6 +66,7 @@ export function DesktopSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
+         <SidebarSeparator />
         <SidebarTrigger />
       </SidebarFooter>
     </Sidebar>
