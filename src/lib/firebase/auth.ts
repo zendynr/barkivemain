@@ -4,6 +4,7 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
+  deleteUser,
 } from 'firebase/auth';
 import { auth } from './config';
 
@@ -22,4 +23,11 @@ export const signOutUser = () => {
 export const signInWithGoogle = () => {
   const provider = new GoogleAuthProvider();
   return signInWithPopup(auth, provider);
+};
+
+export const deleteCurrentUser = () => {
+  if (auth.currentUser) {
+    return deleteUser(auth.currentUser);
+  }
+  return Promise.reject(new Error("No user is currently signed in."));
 };

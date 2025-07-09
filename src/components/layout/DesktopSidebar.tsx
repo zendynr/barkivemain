@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import {
   Sidebar,
   SidebarHeader,
@@ -13,9 +13,8 @@ import {
   SidebarTrigger,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { Home, Utensils, Footprints, Camera, Syringe, Dog, LogOut } from 'lucide-react';
-import { signOutUser } from '@/lib/firebase/auth';
-import { useToast } from '@/hooks/use-toast';
+import { Home, Utensils, Footprints, Camera, Syringe, Dog } from 'lucide-react';
+import { UserMenu } from './UserMenu';
 
 
 const navItems = [
@@ -28,28 +27,20 @@ const navItems = [
 
 export function DesktopSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
-  const { toast } = useToast();
-
-  const handleSignOut = async () => {
-    try {
-      await signOutUser();
-      toast({ title: 'Signed out successfully.' });
-      router.push('/login');
-    } catch (error) {
-      console.error('Sign out error', error);
-      toast({ variant: 'destructive', title: 'Failed to sign out.' });
-    }
-  }
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2">
-            <div className="bg-mint-green p-2 rounded-lg">
-                <Dog className="text-primary-foreground" />
+        <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+                <div className="bg-mint-green p-2 rounded-lg">
+                    <Dog className="text-primary-foreground" />
+                </div>
+                <h1 className="font-headline text-xl font-bold">Barkive</h1>
             </div>
-            <h1 className="font-headline text-xl font-bold">Barkive</h1>
+             <div className="group-data-[collapsible=icon]:hidden">
+                <UserMenu />
+            </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -75,15 +66,6 @@ export function DesktopSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-         <SidebarSeparator />
-         <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleSignOut} tooltip={{ children: 'Sign Out' }}>
-                  <LogOut />
-                  <span>Sign Out</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-         </SidebarMenu>
          <SidebarSeparator />
         <SidebarTrigger />
       </SidebarFooter>
