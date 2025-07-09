@@ -1,31 +1,26 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  RadialBarChart,
-  RadialBar,
-  PolarAngleAxis,
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis,
 } from 'recharts';
 import {
-  HeartPulse,
-  Weight,
-  Thermometer,
-  Pill,
-  PlusCircle,
-  Stethoscope,
-  Scissors,
-  Syringe,
-  Sparkles,
-  Calendar,
+  HeartPulse, Weight, Thermometer, Pill, PlusCircle, Stethoscope, Scissors, Syringe, Sparkles,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
@@ -33,8 +28,166 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthLogs } from '@/hooks/use-health-logs';
 import { useReminders } from '@/hooks/use-reminders';
+import { addHealthLog, addReminder } from '@/lib/firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 import type { HealthLog, Reminder } from '@/lib/types';
 
+
+// --- Dialog and Forms ---
+const logSchema = z.object({
+  type: z.enum(['vet-visit', 'vaccination', 'grooming', 'weight', 'temperature', 'medication']),
+  title: z.string().min(1, 'Title is required.'),
+  notes: z.string(),
+  timestamp: z.date(),
+  value: z.string().optional(),
+});
+
+const reminderSchema = z.object({
+  type: z.enum(['vaccination', 'appointment', 'grooming', 'medication']),
+  name: z.string().min(1, 'Name is required.'),
+  due: z.date(),
+  notes: z.string().optional(),
+});
+
+function AddHealthEventDialog({ open, onOpenChange, onAddLog, onAddReminder }: { 
+  open: boolean; 
+  onOpenChange: (open: boolean) => void;
+  onAddLog: (data: z.infer<typeof logSchema>) => Promise<void>;
+  onAddReminder: (data: z.infer<typeof reminderSchema>) => Promise<void>;
+}) {
+  const { toast } = useToast();
+  
+  const logForm = useForm<z.infer<typeof logSchema>>({
+    resolver: zodResolver(logSchema),
+    defaultValues: { type: 'vet-visit', title: '', notes: '', timestamp: new Date(), value: '' },
+  });
+
+  const reminderForm = useForm<z.infer<typeof reminderSchema>>({
+    resolver: zodResolver(reminderSchema),
+    defaultValues: { type: 'appointment', name: '', due: new Date(), notes: '' },
+  });
+
+  const handleLogSubmit = async (values: z.infer<typeof logSchema>) => {
+    await onAddLog(values);
+    onOpenChange(false);
+    logForm.reset();
+  };
+  
+  const handleReminderSubmit = async (values: z.infer<typeof reminderSchema>) => {
+    await onAddReminder(values);
+    onOpenChange(false);
+    reminderForm.reset();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Add Health Event</DialogTitle>
+        </DialogHeader>
+        <Tabs defaultValue="log" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="log">Log Event</TabsTrigger>
+            <TabsTrigger value="reminder">Set Reminder</TabsTrigger>
+          </TabsList>
+          <TabsContent value="log" className="pt-4">
+            <Form {...logForm}>
+              <form onSubmit={logForm.handleSubmit(handleLogSubmit)} className="space-y-4">
+                {/* Log Event Form Fields */}
+                <FormField control={logForm.control} name="type" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                      <SelectContent>
+                        {Object.keys(timelineIcons).map(key => <SelectItem key={key} value={key}>{key.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}/>
+                <FormField control={logForm.control} name="title" render={({ field }) => (
+                  <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+                 {(logForm.watch('type') === 'weight' || logForm.watch('type') === 'temperature') && (
+                  <FormField control={logForm.control} name="value" render={({ field }) => (
+                    <FormItem><FormLabel>Value</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                  )}/>
+                 )}
+                <FormField control={logForm.control} name="timestamp" render={({ field }) => (
+                  <FormItem className="flex flex-col"><FormLabel>Date</FormLabel>
+                    <Popover><PopoverTrigger asChild>
+                      <FormControl>
+                        <Button variant="outline" className={cn(!field.value && "text-muted-foreground")}>
+                          {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                    </PopoverContent></Popover>
+                  <FormMessage /></FormItem>
+                )}/>
+                <FormField control={logForm.control} name="notes" render={({ field }) => (
+                  <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+                )}/>
+                <DialogFooter>
+                  <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                  <Button type="submit">Save Log</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </TabsContent>
+          <TabsContent value="reminder" className="pt-4">
+            <Form {...reminderForm}>
+              <form onSubmit={reminderForm.handleSubmit(handleReminderSubmit)} className="space-y-4">
+                {/* Reminder Form Fields */}
+                <FormField control={reminderForm.control} name="type" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                       <FormControl><SelectTrigger><SelectValue/></SelectTrigger></FormControl>
+                       <SelectContent>
+                          {Object.keys(reminderIcons).map(key => <SelectItem key={key} value={key}>{key.replace(/\b\w/g, l => l.toUpperCase())}</SelectItem>)}
+                       </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}/>
+                <FormField control={reminderForm.control} name="name" render={({ field }) => (
+                  <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                )}/>
+                <FormField control={reminderForm.control} name="due" render={({ field }) => (
+                  <FormItem className="flex flex-col"><FormLabel>Due Date</FormLabel>
+                    <Popover><PopoverTrigger asChild>
+                      <FormControl>
+                        <Button variant="outline" className={cn(!field.value && "text-muted-foreground")}>
+                          {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                        </Button>
+                      </FormControl>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                    </PopoverContent></Popover>
+                  <FormMessage /></FormItem>
+                )}/>
+                 <FormField control={reminderForm.control} name="notes" render={({ field }) => (
+                  <FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>
+                )}/>
+                <DialogFooter>
+                  <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                  <Button type="submit">Set Reminder</Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// --- Cards and Components ---
 
 const reminderIcons: Record<Reminder['type'], { icon: React.ElementType; color: string }> = {
   vaccination: { icon: Syringe, color: 'text-mint-green' },
@@ -93,10 +246,9 @@ function RemindersCard({ reminders }: { reminders: Reminder[] }) {
       <CardHeader>
         <CardTitle className="font-headline text-gray-900 text-xl flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Calendar className="text-lavender" />
+            <CalendarIcon className="text-lavender" />
             Reminders
           </div>
-          <Button size="sm" variant="ghost"><PlusCircle className="mr-2" />Add</Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -139,16 +291,17 @@ function RemindersCard({ reminders }: { reminders: Reminder[] }) {
 }
 
 function HealthTimeline({ events }: { events: HealthLog[] }) {
+  const sortedEvents = [...events].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   return (
     <Card className="rounded-2xl shadow-md">
       <CardHeader>
         <CardTitle className="font-headline text-gray-900 text-xl">Health Timeline</CardTitle>
       </CardHeader>
       <CardContent>
-        {events.length > 0 ? (
+        {sortedEvents.length > 0 ? (
           <div className="space-y-6 relative">
             <div className="absolute left-5 top-2 h-full w-0.5 bg-gray-200" />
-            {events.map(event => {
+            {sortedEvents.map(event => {
               const {icon: Icon, color} = timelineIcons[event.type];
               return (
                 <div key={event.id} className="flex gap-4 items-start pl-0 relative">
@@ -212,16 +365,51 @@ function EncouragementCard() {
   )
 }
 
+// --- Main Page Component ---
 export default function HealthPage() {
   const { userId, petId } = useAuth();
   const { healthLogs, loading: healthLogsLoading } = useHealthLogs(userId, petId);
   const { reminders, loading: remindersLoading } = useReminders(userId, petId);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
+  
   const loading = healthLogsLoading || remindersLoading;
 
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const handleAddHealthLog = async (data: z.infer<typeof logSchema>) => {
+    if (!userId || !petId) return;
+    try {
+      const logData: Omit<HealthLog, 'id'> = {
+        ...data,
+        type: data.type as HealthLog['type'],
+        value: data.value ? (data.type === 'weight' || data.type === 'temperature' ? parseFloat(data.value) : data.value) : undefined,
+      };
+      await addHealthLog(userId, petId, logData);
+      toast({ title: 'Success', description: 'Health event logged.' });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to log health event.' });
+    }
+  };
+
+  const handleAddReminder = async (data: z.infer<typeof reminderSchema>) => {
+    if (!userId || !petId) return;
+    try {
+      const reminderData: Omit<Reminder, 'id'> = {
+        ...data,
+        type: data.type as Reminder['type'],
+      };
+      await addReminder(userId, petId, reminderData);
+      toast({ title: 'Success', description: 'Reminder set.' });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to set reminder.' });
+    }
+  };
 
   const { healthScore, weightTrend } = useMemo(() => {
     if (!isClient) return { healthScore: 0, weightTrend: [] };
@@ -233,10 +421,10 @@ export default function HealthPage() {
     const lastWeightDays = lastWeightLog ? differenceInDays(new Date(), new Date(lastWeightLog.timestamp)) : 999;
     
     let score = 0;
-    if (lastVisitDays < 180) score += 50; // within 6 months
+    if (lastVisitDays < 180) score += 50;
     else if (lastVisitDays < 365) score += 25;
 
-    if (lastWeightDays < 30) score += 50; // within 1 month
+    if (lastWeightDays < 30) score += 50;
     else if (lastWeightDays < 90) score += 25;
     
     const trend = healthLogs
@@ -272,10 +460,22 @@ export default function HealthPage() {
 
   return (
     <div className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
+       <AddHealthEventDialog 
+        open={isDialogOpen} 
+        onOpenChange={setIsDialogOpen} 
+        onAddLog={handleAddHealthLog} 
+        onAddReminder={handleAddReminder} 
+      />
       <div className="max-w-7xl mx-auto">
-        <header className="mb-8">
-            <h1 className="font-headline text-3xl font-bold text-gray-900">Health Overview</h1>
-            <p className="text-gray-700">Key health metrics, history, and reminders.</p>
+        <header className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="font-headline text-3xl font-bold text-gray-900">Health Overview</h1>
+              <p className="text-gray-700">Key health metrics, history, and reminders.</p>
+            </div>
+             <Button onClick={() => setIsDialogOpen(true)} className="rounded-full shadow-sm">
+                <PlusCircle className="mr-2 h-5 w-5" />
+                Add Event
+            </Button>
         </header>
 
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">

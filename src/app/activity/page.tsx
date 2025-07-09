@@ -411,7 +411,14 @@ export default function ActivityPage() {
   const { toast } = useToast();
 
   const handleAddActivity = async (newLogData: Omit<ActivityLog, 'id' | 'timestamp'>) => {
-    if (!userId || !petId) return;
+    if (!userId || !petId) {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No active pet selected.',
+      });
+      return;
+    }
     try {
       await addActivityLog(userId, petId, newLogData);
     } catch (error) {

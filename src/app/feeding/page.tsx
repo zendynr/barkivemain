@@ -387,7 +387,14 @@ export default function FeedingPage() {
   const { toast } = useToast();
 
   const handleAddFeeding = async (newLogData: Omit<FeedingLog, 'id' | 'timestamp'>) => {
-    if (!userId || !petId) return;
+    if (!userId || !petId) {
+      toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'No active pet selected.',
+        });
+      return;
+    }
     try {
         await addFeedingLog(userId, petId, newLogData);
     } catch(e) {

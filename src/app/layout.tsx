@@ -7,19 +7,20 @@ import { Toaster } from '@/components/ui/toaster';
 import { BottomNavBar } from '@/components/layout/BottomNavBar';
 import { DesktopSidebar } from '@/components/layout/DesktopSidebar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
+import { AppProvider, useAppContext } from '@/contexts/AuthContext';
 import { Dog } from 'lucide-react';
 
 function AppContent({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuthContext();
+  const { user, loading, pets, petsLoading } = useAppContext();
   const pathname = usePathname();
   const router = useRouter();
 
   const isPublicPage = ['/login', '/signup'].includes(pathname);
 
   useEffect(() => {
-    if (loading) {
-      return; // Don't do anything while loading
+    const isReady = !loading && !petsLoading;
+    if (!isReady) {
+      return; 
     }
     if (!user && !isPublicPage) {
       router.push('/login');
@@ -27,10 +28,13 @@ function AppContent({ children }: { children: React.ReactNode }) {
     if (user && isPublicPage) {
       router.push('/');
     }
-  }, [user, loading, isPublicPage, pathname, router]);
+    if (user && pets.length === 0 && pathname !== '/onboarding') {
+      router.push('/onboarding');
+    }
+  }, [user, loading, pets, petsLoading, isPublicPage, pathname, router]);
 
 
-  if (loading) {
+  if (loading || petsLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-background">
         <Dog className="h-16 w-16 text-primary animate-bounce" />
@@ -40,6 +44,15 @@ function AppContent({ children }: { children: React.ReactNode }) {
 
   if (isPublicPage || !user) {
      return <>{children}</>;
+  }
+  
+  // Don't render protected pages if there are no pets and we are about to redirect
+  if (pets.length === 0 && pathname !== '/onboarding') {
+    return (
+       <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <Dog className="h-16 w-16 text-primary animate-bounce" />
+      </div>
+    );
   }
 
   // Authenticated user on a protected route
@@ -80,12 +93,12 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <AuthProvider>
+        <AppProvider>
           <AppContent>
             {children}
           </AppContent>
           <Toaster />
-        </AuthProvider>
+        </AppProvider>
       </body>
     </html>
   );

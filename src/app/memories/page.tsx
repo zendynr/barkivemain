@@ -57,8 +57,12 @@ function AddMemoryDialog({ open, onOpenChange, onAddMemory }: { open: boolean; o
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setPreview(URL.createObjectURL(file));
-      form.setValue('image', file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreview(reader.result as string);
+        form.setValue('image', file, { shouldValidate: true });
+      };
+      reader.readAsDataURL(file);
     }
   }
 
@@ -83,9 +87,17 @@ function AddMemoryDialog({ open, onOpenChange, onAddMemory }: { open: boolean; o
       setIsSubmitting(false);
     }
   }
+  
+  const handleDialogClose = (open: boolean) => {
+    if (!open) {
+      form.reset();
+      setPreview(null);
+    }
+    onOpenChange(open);
+  }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogClose}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a New Memory</DialogTitle>
@@ -163,9 +175,15 @@ export default function MemoriesPage() {
   const { userId, petId } = useAuth();
   const { memories, loading } = useMemories(userId, petId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const handleAddMemory = async (data: z.infer<typeof formSchema>) => {
      if (!userId || !petId) {
+       toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No active pet selected.',
+      });
       throw new Error("User or pet not available");
     }
     const imageUrl = await uploadMemoryImage(userId, petId, data.image);

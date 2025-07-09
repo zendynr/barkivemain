@@ -2,6 +2,7 @@ import {
   collection,
   addDoc,
   serverTimestamp,
+  Timestamp,
 } from 'firebase/firestore';
 import { db } from './config';
 import type { FeedingLog, ActivityLog, Pet, Memory, HealthLog, Reminder } from '@/lib/types';
@@ -74,23 +75,19 @@ export const addMemory = (
 export const addHealthLog = (
     userId: string,
     petId: string,
-    logData: Omit<HealthLog, 'id' | 'timestamp'>
+    logData: Omit<HealthLog, 'id'>
 ) => {
-    const dataWithTimestamp = {
-        ...logData,
-        timestamp: serverTimestamp(),
-    };
-    return addDoc(getHealthLogsCollection(userId, petId), dataWithTimestamp);
+    // Firestore handles JS Date object conversion to Timestamp automatically.
+    return addDoc(getHealthLogsCollection(userId, petId), logData);
 }
 
 export const addReminder = (
     userId: string,
     petId: string,
-    reminderData: Omit<Reminder, 'id' | 'due'> & { due: Date }
+    reminderData: Omit<Reminder, 'id'>
 ) => {
     return addDoc(getRemindersCollection(userId, petId), {
       ...reminderData,
-      // Firestore handles Date object conversion to Timestamp
     });
 }
 
