@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/use-auth';
@@ -12,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Dog, Cat, Bird, Rabbit, Bone, Rocket, Sofa, Weight, Cake, Upload, Sparkles, PawPrint, ChevronLeft, ChevronRight, Scale, Dumbbell, Clock, Info } from 'lucide-react';
+import { Dog, Cat, Bird, Rabbit, Bone, Rocket, Sofa, Weight, Cake, Upload, Sparkles, PawPrint, ChevronLeft, ChevronRight, Scale, Dumbbell, Clock, Info, ChevronsUpDown, Check } from 'lucide-react';
 import type { Pet } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Label } from '@/components/ui/label';
@@ -20,6 +20,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+import { dogBreeds, catBreeds, otherBreeds } from '@/lib/data/breeds';
 
 
 const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false });
@@ -75,6 +80,7 @@ export function OnboardingFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [tempFavFoods, setTempFavFoods] = useState('');
+  const [comboboxOpen, setComboboxOpen] = useState(false);
 
   const totalSteps = 7;
 
@@ -159,6 +165,22 @@ export function OnboardingFlow() {
     }
   };
 
+  const breeds = useMemo(() => {
+    switch (formData.species) {
+      case 'Dog':
+        return dogBreeds;
+      case 'Cat':
+        return catBreeds;
+      default:
+        return otherBreeds;
+    }
+  }, [formData.species]);
+
+  const handleSpeciesChange = (species: keyof typeof speciesIcons) => {
+    updateFormData('species', species);
+    updateFormData('breed', ''); // Reset breed when species changes
+  };
+
   const steps = [
     // Welcome
     <WelcomeScreen onNext={handleNext} />,
@@ -169,10 +191,6 @@ export function OnboardingFlow() {
                 <Label htmlFor="name">Pet's Name</Label>
                 <Input id="name" placeholder="e.g. Buddy" value={formData.name} onChange={e => updateFormData('name', e.target.value)} />
             </div>
-             <div>
-                <Label htmlFor="breed">Breed</Label>
-                <Input id="breed" placeholder="e.g. Golden Retriever" value={formData.breed} onChange={e => updateFormData('breed', e.target.value)} />
-            </div>
             <div>
                  <Label>Species</Label>
                  <div className="grid grid-cols-3 gap-2 pt-2">
@@ -181,7 +199,7 @@ export function OnboardingFlow() {
                         return (
                             <Card
                                 key={species}
-                                onClick={() => updateFormData('species', species)}
+                                onClick={() => handleSpeciesChange(species)}
                                 className={`p-2 text-center cursor-pointer transition-all duration-200 ${formData.species === species ? 'ring-2 ring-primary shadow-md' : 'hover:shadow-sm'}`}
                             >
                                 <Icon className="w-8 h-8 mx-auto text-gray-700" />
@@ -190,6 +208,53 @@ export function OnboardingFlow() {
                         )
                     })}
                 </div>
+            </div>
+            <div>
+                <Label>Breed</Label>
+                <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={comboboxOpen}
+                            className="w-full justify-between"
+                        >
+                            {formData.breed
+                                ? breeds.find((breed) => breed.label.toLowerCase() === formData.breed?.toLowerCase())?.label
+                                : "Select breed..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                        <Command>
+                            <CommandInput placeholder="Search breed..." />
+                            <CommandEmpty>No breed found.</CommandEmpty>
+                            <CommandGroup>
+                               <ScrollArea className="h-48">
+                                {breeds.map((breed) => (
+                                    <CommandItem
+                                        key={breed.value}
+                                        value={breed.value}
+                                        onSelect={(currentValue) => {
+                                            const selectedBreed = breeds.find(b => b.value === currentValue);
+                                            updateFormData('breed', selectedBreed ? selectedBreed.label : '');
+                                            setComboboxOpen(false);
+                                        }}
+                                    >
+                                        <Check
+                                            className={cn(
+                                                "mr-2 h-4 w-4",
+                                                formData.breed?.toLowerCase() === breed.label.toLowerCase() ? "opacity-100" : "opacity-0"
+                                            )}
+                                        />
+                                        {breed.label}
+                                    </CommandItem>
+                                ))}
+                               </ScrollArea>
+                            </CommandGroup>
+                        </Command>
+                    </PopoverContent>
+                </Popover>
             </div>
         </div>
     </Step>,
@@ -403,7 +468,7 @@ function WelcomeScreen({onNext}: {onNext: () => void}) {
 
 function Step({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center text-center gap-4 min-h-[350px]">
+    <div className="flex flex-col items-center text-center gap-4 min-h-[420px]">
       <h2 className="text-2xl font-bold">{title}</h2>
       {children}
     </div>
