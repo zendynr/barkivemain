@@ -54,8 +54,10 @@ export function UserMenu() {
           variant: 'destructive',
           title: 'Action Required',
           description:
-            'This is a sensitive action. Please sign out and sign back in before deleting your account.',
+            'This is a sensitive action. Please sign in again to confirm account deletion.',
         });
+        await signOutUser();
+        router.push('/login');
       } else {
         toast({
           variant: 'destructive',
