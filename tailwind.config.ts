@@ -1,4 +1,4 @@
-import type {Config} from 'tailwindcss';
+import type { Config } from 'tailwindcss';
 
 export default {
   darkMode: ['class'],
@@ -10,8 +10,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', 'sans-serif'],
-        headline: ['Inter', 'sans-serif'],
+        body: ['Nunito', 'sans-serif'],
+        headline: ['Nunito', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
@@ -65,6 +65,9 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
+        'mint-green': '#D7EAD9',
+        'coral-blush': '#FAD3D3',
+        lavender: '#EADDF5',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -88,10 +91,27 @@ export default {
             height: '0',
           },
         },
+        stamp: {
+          '0%': { transform: 'scale(1.5)', opacity: '0' },
+          '50%': { transform: 'scale(1.1)', opacity: '1' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
+        glow: {
+          '0%, 100%': {
+            boxShadow: '0 0 5px hsl(var(--primary))',
+            filter: 'brightness(1)',
+          },
+          '50%': {
+            boxShadow: '0 0 20px 5px hsl(var(--primary))',
+            filter: 'brightness(1.1)',
+          },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        stamp: 'stamp 0.5s ease-out forwards',
+        glow: 'glow 2.5s ease-in-out infinite',
       },
     },
   },
