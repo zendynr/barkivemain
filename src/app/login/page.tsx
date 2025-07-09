@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { signIn } from '@/lib/firebase/auth';
+import { signIn, signInWithGoogle } from '@/lib/firebase/auth';
 import Link from 'next/link';
 import { Dog } from 'lucide-react';
+import { GoogleIcon } from '@/components/icons';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address.'),
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,6 +50,24 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   }
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      toast({ title: 'Welcome!' });
+      router.push('/');
+    } catch (error: any) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Sign In Failed',
+        description: 'Could not sign in with Google. Please try again.',
+      });
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen w-full bg-[#FCF7F8] flex items-center justify-center p-4">
@@ -88,11 +108,31 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
                 {isLoading ? 'Signing In...' : 'Sign In'}
               </Button>
             </form>
           </Form>
+
+          <div className="my-4 flex items-center">
+            <div className="flex-grow border-t" />
+            <span className="mx-4 flex-shrink text-xs uppercase text-muted-foreground">
+              Or continue with
+            </span>
+            <div className="flex-grow border-t" />
+          </div>
+
+          <Button variant="outline" className="w-full" onClick={handleGoogleSignIn} disabled={isLoading || isGoogleLoading}>
+            {isGoogleLoading ? (
+              'Signing In...'
+            ) : (
+              <>
+                <GoogleIcon className="mr-2 h-5 w-5" />
+                Sign in with Google
+              </>
+            )}
+          </Button>
+
           <p className="mt-4 text-center text-sm text-gray-600">
             Don&apos;t have an account?{' '}
             <Link href="/signup" className="font-semibold text-primary hover:underline">
