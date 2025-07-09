@@ -14,7 +14,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Dog, Cat, Bird, Rabbit, Bone, Rocket, Sofa, Weight, Cake, Upload, Sparkles, PawPrint, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Pet } from '@/lib/types';
-import ReactConfetti from 'react-confetti';
+import dynamic from 'next/dynamic';
+
+const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false });
 
 
 type OnboardingData = Omit<Pet, 'id'>;
@@ -79,7 +81,7 @@ export function OnboardingFlow() {
 
     setIsSubmitting(true);
     try {
-        let avatarUrl = defaultPetData.avatarUrl;
+        let avatarUrl = formData.avatarUrl || defaultPetData.avatarUrl;
         if (avatarFile) {
             avatarUrl = await uploadPetAvatar(userId, avatarFile);
         }
@@ -100,9 +102,21 @@ export function OnboardingFlow() {
           toast({ title: 'Welcome!', description: `${formData.name} has been added to your pack.` });
           router.push('/');
         }, 3000); // Let confetti run for a bit
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to create pet profile:", error);
-        toast({ variant: 'destructive', title: 'Submission Error', description: 'Could not save pet profile. Please try again.' });
+        let description = 'Could not save pet profile. Please try again.';
+        if (error.code) {
+          switch (error.code) {
+            case 'permission-denied':
+            case 'unauthenticated':
+              description = 'Please check your Firestore security rules. You may not have permission to write data.';
+              break;
+            case 'failed-precondition':
+              description = 'A backend service is not enabled. Please ensure Firestore and Storage are enabled in your Firebase project console.';
+              break;
+          }
+        }
+        toast({ variant: 'destructive', title: 'Submission Error', description });
         setIsSubmitting(false);
     }
   };
@@ -197,7 +211,7 @@ export function OnboardingFlow() {
     // Review
     <Step title="Does this look right?">
         <Card className="p-4 shadow-lg">
-            <CardContent className="flex items-center gap-4">
+            <CardContent className="flex items-center gap-4 p-0">
                  <Avatar className="h-20 w-20">
                     <AvatarImage src={avatarPreview || undefined} alt={formData.name} />
                     <AvatarFallback>{formData.name?.charAt(0)}</AvatarFallback>
@@ -218,7 +232,7 @@ export function OnboardingFlow() {
   if(showConfetti) {
       return (
           <div className="w-full max-w-md text-center">
-              <ReactConfetti recycle={false} numberOfPieces={300} />
+              {showConfetti && <ReactConfetti recycle={false} numberOfPieces={300} />}
               <Sparkles className="w-24 h-24 mx-auto text-yellow-400 animate-pulse"/>
               <h2 className="text-3xl font-bold mt-4">All set!</h2>
               <p className="text-lg text-gray-700 mt-2">{formData.name} is ready for their journey!</p>
