@@ -1,24 +1,71 @@
 'use client';
 
 import './globals.css';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { Toaster } from '@/components/ui/toaster';
 import { BottomNavBar } from '@/components/layout/BottomNavBar';
 import { DesktopSidebar } from '@/components/layout/DesktopSidebar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
+import { Dog } from 'lucide-react';
 
-// export const metadata: Metadata = {
-//   title: 'Barkive',
-//   description: 'Your personal pet dashboard',
-// };
+function AppContent({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuthContext();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const isPublicPage = ['/login', '/signup'].includes(pathname);
+
+  useEffect(() => {
+    if (loading) {
+      return; // Don't do anything while loading
+    }
+    if (!user && !isPublicPage) {
+      router.push('/login');
+    }
+    if (user && isPublicPage) {
+      router.push('/');
+    }
+  }, [user, loading, isPublicPage, pathname, router]);
+
+
+  if (loading) {
+    return (
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
+        <Dog className="h-16 w-16 text-primary animate-bounce" />
+      </div>
+    );
+  }
+
+  if (isPublicPage || !user) {
+     return <>{children}</>;
+  }
+
+  // Authenticated user on a protected route
+  const showNav = pathname !== '/onboarding';
+
+  return (
+    <>
+      {showNav ? (
+        <SidebarProvider>
+          <DesktopSidebar />
+          <SidebarInset>{children}</SidebarInset>
+        </SidebarProvider>
+      ) : (
+        children
+      )}
+      {showNav && <BottomNavBar />}
+    </>
+  )
+}
+
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = usePathname();
-  const showNav = pathname !== '/onboarding';
 
   return (
     <html lang="en" className="scroll-smooth">
@@ -33,16 +80,12 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        {showNav ? (
-          <SidebarProvider>
-            <DesktopSidebar />
-            <SidebarInset>{children}</SidebarInset>
-          </SidebarProvider>
-        ) : (
-          children
-        )}
-        {showNav && <BottomNavBar />}
-        <Toaster />
+        <AuthProvider>
+          <AppContent>
+            {children}
+          </AppContent>
+          <Toaster />
+        </AuthProvider>
       </body>
     </html>
   );
