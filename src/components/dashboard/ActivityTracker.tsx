@@ -11,14 +11,16 @@ const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export function ActivityTracker({ activityLogs }: { activityLogs: ActivityLog[] }) {
   const [activeDays, setActiveDays] = useState<boolean[]>(Array(7).fill(false));
+  const [currentDayIndex, setCurrentDayIndex] = useState(-1);
+  const [isClient, setIsClient] = useState(false);
 
   const weekDates = useMemo(() => {
     const today = new Date();
-    // Set to Monday of the current week
     const firstDay = new Date(today);
-    const dayOfWeek = today.getDay(); // Sunday - 0, Monday - 1, ...
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust when day is Sunday
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
     firstDay.setDate(diff);
+    firstDay.setHours(0, 0, 0, 0);
 
     return Array.from({ length: 7 }, (_, i) => {
       const date = new Date(firstDay);
@@ -28,25 +30,45 @@ export function ActivityTracker({ activityLogs }: { activityLogs: ActivityLog[] 
   }, []);
 
   useEffect(() => {
+    setIsClient(true);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
     const isSameDay = (date1: Date, date2: Date) =>
       date1.getFullYear() === date2.getFullYear() &&
       date1.getMonth() === date2.getMonth() &&
       date1.getDate() === date2.getDate();
 
     const newActiveDays = weekDates.map(weekDate =>
-      activityLogs.some(log => isSameDay(new Date(log.timestamp), weekDate))
+      activityLogs.some(log => {
+        const logDate = new Date(log.timestamp);
+        logDate.setHours(0, 0, 0, 0);
+        return isSameDay(logDate, weekDate);
+      })
     );
-    
-    // Set a timeout to apply animation class slightly after mount
-    const timer = setTimeout(() => {
-        setActiveDays(newActiveDays);
-    }, 100);
 
-    return () => clearTimeout(timer);
+    const todayIndex = weekDates.findIndex(date => isSameDay(date, today));
+    
+    setCurrentDayIndex(todayIndex > -1 ? todayIndex : (new Date().getDay() + 6) % 7);
+    setActiveDays(newActiveDays);
+
   }, [activityLogs, weekDates]);
 
   const completedDays = activeDays.filter(Boolean).length;
   const streakCompleted = completedDays >= 5;
+
+  const pawPositionStyle = useMemo(() => {
+    if (!isClient || currentDayIndex === -1) {
+      return { opacity: 0, left: '50%' };
+    }
+    const leftValue = ((currentDayIndex / 7) * 100) + (100 / 14);
+    return {
+      left: `${leftValue}%`,
+      transform: 'translateX(-50%)',
+      opacity: 1,
+      transition: 'left 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s',
+    };
+  }, [currentDayIndex, isClient]);
 
   return (
     <Card className="rounded-2xl shadow-md">
@@ -63,27 +85,41 @@ export function ActivityTracker({ activityLogs }: { activityLogs: ActivityLog[] 
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="flex justify-around gap-2">
-          {dayLabels.map((label, index) => (
-            <div key={index} className="flex flex-col items-center gap-2">
-              <div
-                className={cn(
-                  'w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300',
-                  activeDays[index] ? 'bg-mint-green' : 'bg-gray-200'
-                )}
-              >
-                <PawPrint
-                  className={cn(
-                    'w-7 h-7',
-                    activeDays[index] ? 'text-white animate-stamp' : 'text-gray-400'
-                  )}
-                  style={{ animationDelay: `${index * 100}ms` }}
-                />
-              </div>
-              <p className="font-semibold text-gray-600">{label}</p>
-            </div>
-          ))}
+      <CardContent className="pt-8 pb-4">
+        {/* The timeline and paw indicator */}
+        <div className="relative h-14">
+          <div className="absolute top-1/2 w-full h-1.5 bg-gray-200 rounded-full -translate-y-1/2">
+             <div
+                className="h-full bg-mint-green rounded-full"
+                style={{ width: `${(completedDays / 7) * 100}%`, transition: 'width 1s ease-out' }}
+              />
+          </div>
+          <div className="absolute -top-1 w-full" style={pawPositionStyle}>
+            <PawPrint className="w-8 h-8 text-mint-green drop-shadow-md" />
+          </div>
+
+          <div className="grid grid-cols-7 h-full">
+            {dayLabels.map((_, index) => (
+                <div key={index} className="flex justify-center items-center">
+                    <div
+                        className={cn(
+                        'w-3.5 h-3.5 rounded-full border-2 bg-card transition-colors z-10',
+                        activeDays[index] ? 'border-mint-green bg-mint-green' : 'border-gray-300'
+                        )}
+                    />
+                </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Day labels */}
+        <div className="grid grid-cols-7 text-center">
+            {dayLabels.map((label, index) => (
+                <p key={index} className={cn(
+                    "font-semibold text-gray-600 transition-colors",
+                    index === currentDayIndex && isClient ? "text-gray-900" : ""
+                )}>{label}</p>
+            ))}
         </div>
       </CardContent>
     </Card>
