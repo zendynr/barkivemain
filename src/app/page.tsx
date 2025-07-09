@@ -1,11 +1,13 @@
 import { UserProfile } from '@/components/dashboard/UserProfile';
+import { ActivityTracker } from '@/components/dashboard/ActivityTracker';
+import { MemoriesCarousel } from '@/components/dashboard/MemoriesCarousel';
+import { CareTips } from '@/components/dashboard/CareTips';
 import { MealTracker } from '@/components/dashboard/MealTracker';
-import { pet, feedingLogs } from '@/lib/mock-data';
+import { pet, activityLogs, memories, feedingLogs } from '@/lib/mock-data';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight, Footprints, Camera, Syringe } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { ArrowRight } from 'lucide-react';
 
 export default function Home() {
   return (
@@ -21,11 +23,8 @@ export default function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 flex flex-col gap-6">
             <UserProfile pet={pet} />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <QuickLinkCard href="/activity" icon={Footprints} title="Activity" description="View walk and play logs" color="text-mint-green" />
-              <QuickLinkCard href="/memories" icon={Camera} title="Memories" description="See recent photos" color="text-lavender" />
-              <QuickLinkCard href="/health" icon={Syringe} title="Health" description="Get care tips" color="text-coral-blush" />
-            </div>
+            <ActivityTracker activityLogs={activityLogs} />
+            <CareTips pet={pet} />
           </div>
 
           <div className="lg:col-span-1 flex flex-col gap-6">
@@ -45,22 +44,11 @@ export default function Home() {
             </Card>
           </div>
         </div>
+
+        <div className="mt-6">
+          <MemoriesCarousel memories={memories} />
+        </div>
       </div>
     </div>
   );
-}
-
-function QuickLinkCard({ href, icon: Icon, title, description, color }: { href: string; icon: React.ElementType; title: string; description: string, color: string }) {
-  return (
-    <Card className="rounded-2xl shadow-md hover:shadow-lg transition-shadow">
-      <CardContent className="p-6 flex flex-col items-center text-center gap-2">
-        <Icon className={cn("w-10 h-10 mb-2", color)} />
-        <p className="font-bold text-lg text-gray-900">{title}</p>
-        <p className="text-sm text-gray-600 mb-2">{description}</p>
-        <Button asChild variant="outline" size="sm">
-            <Link href={href}>Go to {title}</Link>
-        </Button>
-      </CardContent>
-    </Card>
-  )
 }
