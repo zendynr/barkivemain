@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -145,6 +145,11 @@ function AddActivityDialog({ onAddActivity, open, onOpenChange }: { onAddActivit
 }
 
 function ActivityList({ logs, onAdd }: { logs: ActivityLog[]; onAdd: () => void }) {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   if (logs.length === 0) {
     return (
       <div className="text-center py-12 flex flex-col items-center gap-4 bg-gray-50/50 rounded-2xl border border-dashed">
@@ -174,7 +179,7 @@ function ActivityList({ logs, onAdd }: { logs: ActivityLog[]; onAdd: () => void 
             <div className="flex items-center gap-2 text-sm text-gray-500 ml-4 pt-1">
               <Clock className="w-4 h-4" />
               <span>
-                {log.timestamp.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                {isClient ? log.timestamp.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null}
               </span>
             </div>
           </CardContent>
@@ -185,7 +190,9 @@ function ActivityList({ logs, onAdd }: { logs: ActivityLog[]; onAdd: () => void 
 }
 
 function ActivityChart({ logs }: { logs: ActivityLog[] }) {
-    const data = useMemo(() => {
+    const [data, setData] = useState(Array(7).fill({ name: '', duration: 0 }));
+
+    useEffect(() => {
         const today = new Date();
         const startOfWeek = new Date(today);
         startOfWeek.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
@@ -209,7 +216,7 @@ function ActivityChart({ logs }: { logs: ActivityLog[] }) {
             }
         });
 
-        return weekData;
+        setData(weekData);
     }, [logs]);
 
     return (
@@ -242,35 +249,40 @@ function ActivityChart({ logs }: { logs: ActivityLog[] }) {
 }
 
 function StreakCard({ logs }: { logs: ActivityLog[] }) {
-    const streak = useMemo(() => {
-        if (logs.length === 0) return 0;
+    const [streak, setStreak] = useState(0);
 
-        const uniqueDays = [...new Set(logs.map(log => new Date(log.timestamp).toDateString()))].map(dateStr => new Date(dateStr));
-        uniqueDays.sort((a, b) => b.getTime() - a.getTime());
+    useEffect(() => {
+      if (logs.length === 0) {
+        setStreak(0);
+        return;
+      };
 
-        let currentStreak = 0;
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
+      const uniqueDays = [...new Set(logs.map(log => new Date(log.timestamp).toDateString()))].map(dateStr => new Date(dateStr));
+      uniqueDays.sort((a, b) => b.getTime() - a.getTime());
 
-        const firstLogDay = uniqueDays[0];
-        firstLogDay.setHours(0,0,0,0);
-        
-        if (firstLogDay.getTime() === today.getTime() || firstLogDay.getTime() === yesterday.getTime()) {
-            currentStreak = 1;
-            for (let i = 0; i < uniqueDays.length - 1; i++) {
-                const day = uniqueDays[i];
-                const prevDay = uniqueDays[i+1];
-                const diff = (day.getTime() - prevDay.getTime()) / (1000 * 3600 * 24);
-                if (diff === 1) {
-                    currentStreak++;
-                } else {
-                    break;
-                }
-            }
-        }
-        return currentStreak;
+      let currentStreak = 0;
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+
+      const firstLogDay = uniqueDays[0];
+      firstLogDay.setHours(0,0,0,0);
+      
+      if (firstLogDay.getTime() === today.getTime() || firstLogDay.getTime() === yesterday.getTime()) {
+          currentStreak = 1;
+          for (let i = 0; i < uniqueDays.length - 1; i++) {
+              const day = uniqueDays[i];
+              const prevDay = uniqueDays[i+1];
+              const diff = (day.getTime() - prevDay.getTime()) / (1000 * 3600 * 24);
+              if (diff === 1) {
+                  currentStreak++;
+              } else {
+                  break;
+              }
+          }
+      }
+      setStreak(currentStreak);
     }, [logs]);
 
     return (
@@ -291,15 +303,18 @@ function StreakCard({ logs }: { logs: ActivityLog[] }) {
 
 function WeeklyGoalCard({ logs }: { logs: ActivityLog[] }) {
     const weeklyGoal = 300; // 300 minutes
-    const totalMinutes = useMemo(() => {
-         const today = new Date();
-        const startOfWeek = new Date(today);
-        startOfWeek.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
-        startOfWeek.setHours(0, 0, 0, 0);
+    const [totalMinutes, setTotalMinutes] = useState(0);
+    
+    useEffect(() => {
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
+      startOfWeek.setHours(0, 0, 0, 0);
 
-        return logs
-            .filter(log => new Date(log.timestamp) >= startOfWeek)
-            .reduce((total, log) => total + log.duration, 0);
+      const minutes = logs
+          .filter(log => new Date(log.timestamp) >= startOfWeek)
+          .reduce((total, log) => total + log.duration, 0);
+      setTotalMinutes(minutes);
     }, [logs]);
 
     const percentage = Math.min(Math.round((totalMinutes / weeklyGoal) * 100), 100);
