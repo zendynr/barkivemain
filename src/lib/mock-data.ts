@@ -84,12 +84,14 @@ export const feedingLogs: FeedingLog[] = [
     timestamp: new Date(new Date().setHours(8, 30, 0, 0)),
     foodType: 'Kibble',
     quantity: '1 cup',
+    reaction: 'happy',
   },
-    {
+  {
     id: 'feed2',
     timestamp: new Date(new Date().setHours(18, 0, 0, 0)),
     foodType: 'Wet Food',
     quantity: '1 can',
+    reaction: 'happy',
   },
   // Yesterday's meals
   {
@@ -98,11 +100,27 @@ export const feedingLogs: FeedingLog[] = [
     foodType: 'Kibble',
     quantity: '1 cup',
     notes: 'Ate it all up quickly!',
+    reaction: 'neutral',
   },
   {
     id: 'feed4',
     timestamp: new Date(new Date(yesterday).setHours(18, 10, 0, 0)),
     foodType: 'Wet Food',
     quantity: '1 can',
+  },
+  {
+    id: 'feed5',
+    timestamp: new Date(new Date().setHours(14, 0, 0, 0)),
+    foodType: 'Treat',
+    quantity: '1 dental chew',
+    reaction: 'displeased',
+    notes: 'Did not like the new flavor'
+  },
+  {
+    id: 'feed6',
+    timestamp: new Date(new Date(yesterday).setHours(14, 5, 0, 0)),
+    foodType: 'Treat',
+    quantity: '2 small biscuits',
+    reaction: 'happy',
   },
 ];

@@ -29,4 +29,5 @@ export interface FeedingLog {
   foodType: 'Kibble' | 'Wet Food' | 'Treat' | 'Other';
   quantity: string; // e.g., "1 cup", "1 can", "2 treats"
   notes?: string;
+  reaction?: 'happy' | 'neutral' | 'displeased';
 }
