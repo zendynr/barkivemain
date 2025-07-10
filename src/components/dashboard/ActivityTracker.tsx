@@ -8,75 +8,57 @@ import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
-const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export function ActivityTracker({ activityLogs }: { activityLogs: ActivityLog[] }) {
   const [activeDays, setActiveDays] = useState<boolean[]>(Array(7).fill(false));
-  const [currentDayIndex, setCurrentDayIndex] = useState(-1);
+  const [animatedDays, setAnimatedDays] = useState<boolean[]>(Array(7).fill(false));
   const [isClient, setIsClient] = useState(false);
-
-  const weekDates = useMemo(() => {
-    const today = new Date();
-    const firstDay = new Date(today);
-    const dayOfWeek = today.getDay();
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-    firstDay.setDate(diff);
-    firstDay.setHours(0, 0, 0, 0);
-
-    return Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(firstDay);
-      date.setDate(firstDay.getDate() + i);
-      return date;
-    });
-  }, []);
 
   useEffect(() => {
     setIsClient(true);
+    
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const firstDayOfWeek = new Date(today);
+    firstDayOfWeek.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1));
+    firstDayOfWeek.setHours(0, 0, 0, 0);
 
-    const isSameDay = (date1: Date, date2: Date) =>
-      date1.getFullYear() === date2.getFullYear() &&
-      date1.getMonth() === date2.getMonth() &&
-      date1.getDate() === date2.getDate();
+    const weekDates = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date(firstDayOfWeek);
+        date.setDate(firstDayOfWeek.getDate() + i);
+        return date;
+    });
 
     const newActiveDays = weekDates.map(weekDate =>
-      activityLogs.some(log => {
-        const logDate = new Date(log.timestamp);
-        logDate.setHours(0, 0, 0, 0);
-        return isSameDay(logDate, weekDate);
-      })
+        activityLogs.some(log => {
+            const logDate = new Date(log.timestamp);
+            return logDate.toDateString() === weekDate.toDateString();
+        })
     );
 
-    const todayIndex = weekDates.findIndex(date => isSameDay(date, today));
-    
-    setCurrentDayIndex(todayIndex > -1 ? todayIndex : (new Date().getDay() + 6) % 7);
     setActiveDays(newActiveDays);
 
-  }, [activityLogs, weekDates]);
+    // Trigger animation for newly active days
+    const newAnimatedDays = newActiveDays.map((active, i) => active && !activeDays[i]);
+    setAnimatedDays(newAnimatedDays);
+
+  }, [activityLogs]);
 
   const completedDays = activeDays.filter(Boolean).length;
   const streakCompleted = completedDays >= 5;
 
-  const pawPositionStyle = useMemo(() => {
-    if (!isClient || currentDayIndex === -1) {
-      return { opacity: 0, left: '50%' };
-    }
-    const leftValue = ((currentDayIndex / 7) * 100) + (100 / 14);
-    return {
-      left: `${leftValue}%`,
-      transform: 'translateX(-50%)',
-      opacity: 1,
-      transition: 'left 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s',
-    };
-  }, [currentDayIndex, isClient]);
-  
   if (activityLogs.length === 0 && isClient) {
     return (
-       <Card className="rounded-2xl shadow-md">
+       <Card className="rounded-2xl shadow-md bg-mint-green/20">
         <CardContent className="p-6 text-center flex flex-col items-center justify-center gap-4 min-h-[240px]">
-          <div className="w-16 h-16 rounded-full bg-mint-green/20 flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center">
             <PawPrint className="w-10 h-10 text-mint-green" />
           </div>
           <h3 className="font-headline text-2xl font-semibold text-gray-800">Ready for an adventure?</h3>
@@ -100,46 +82,39 @@ export function ActivityTracker({ activityLogs }: { activityLogs: ActivityLog[] 
             Weekly Activity
           </div>
           {streakCompleted && (
-            <Badge variant="secondary" className="bg-primary text-primary-foreground animate-glow">
+            <Badge variant="secondary" className="bg-amber-400 text-amber-900 animate-glow border-amber-500">
               <Award className="mr-1 h-4 w-4"/> 5+ Day Streak!
             </Badge>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="pt-8 pb-4">
-        <div className="relative h-14">
-          <div className="absolute top-1/2 w-full h-1.5 bg-gray-200 rounded-full -translate-y-1/2">
-             <div
-                className="h-full bg-mint-green rounded-full"
-                style={{ width: `${(completedDays / 7) * 100}%`, transition: 'width 1s ease-out' }}
-              />
-          </div>
-          <div className="absolute -top-1 w-full" style={pawPositionStyle}>
-            <PawPrint className="w-8 h-8 text-mint-green drop-shadow-md" />
-          </div>
-
-          <div className="grid grid-cols-7 h-full">
-            {dayLabels.map((_, index) => (
-                <div key={index} className="flex justify-center items-center">
-                    <div
-                        className={cn(
-                        'w-3.5 h-3.5 rounded-full border-2 bg-card transition-colors z-10',
-                        activeDays[index] ? 'border-mint-green bg-mint-green' : 'border-gray-300'
-                        )}
-                    />
-                </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-7 text-center">
+      <CardContent className="pt-4 pb-4">
+        <TooltipProvider>
+          <div className="flex justify-around items-center">
             {dayLabels.map((label, index) => (
-                <p key={index} className={cn(
-                    "font-semibold text-gray-600 transition-colors",
-                    index === currentDayIndex && isClient ? "text-gray-900" : ""
-                )}>{label}</p>
+              <div key={index} className="flex flex-col items-center gap-2">
+                 <Tooltip>
+                    <TooltipTrigger>
+                       <div className={cn(
+                          "w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 border-2",
+                          activeDays[index] ? 'bg-mint-green border-mint-green/50' : 'bg-gray-100 border-gray-200'
+                        )}>
+                          <PawPrint className={cn(
+                            'w-8 h-8 transition-colors',
+                            activeDays[index] ? 'text-white' : 'text-gray-300',
+                             animatedDays[index] && 'animate-stamp'
+                          )} />
+                        </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{activeDays[index] ? 'Activity logged!' : 'No activity yet'}</p>
+                    </TooltipContent>
+                </Tooltip>
+                <p className="font-semibold text-gray-600 text-sm">{label}</p>
+              </div>
             ))}
-        </div>
+          </div>
+        </TooltipProvider>
       </CardContent>
     </Card>
   );

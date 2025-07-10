@@ -32,7 +32,7 @@ const moodConfig: Record<
   Grumpy: {
     icon: Frown,
     color: 'text-coral-blush',
-    message: 'seems a bit off today.',
+    message: 'seems a bit on the grumpy side.',
   },
 };
 
@@ -53,17 +53,20 @@ export function UserProfile({
       today.getDate()
     );
 
-    const todaysActivity = activityLogs.filter(
-      (log) => new Date(log.timestamp) >= startOfToday
-    ).length;
+    const todaysActivityDuration = activityLogs
+      .filter((log) => new Date(log.timestamp) >= startOfToday)
+      .reduce((sum, log) => sum + log.duration, 0);
+
     const todaysMeals = feedingLogs.filter(
       (log) => new Date(log.timestamp) >= startOfToday
     ).length;
 
-    if (todaysActivity > 0 && todaysMeals >= 2) return 'Happy';
-    if (todaysActivity === 0 && todaysMeals < 2) return 'Grumpy';
+    const requiredMeals = pet.feedingSchedule?.length || 2;
+
+    if (todaysActivityDuration > 20 && todaysMeals >= requiredMeals) return 'Happy';
+    if (todaysActivityDuration === 0 && todaysMeals < requiredMeals / 2) return 'Grumpy';
     return 'Neutral';
-  }, [activityLogs, feedingLogs]);
+  }, [activityLogs, feedingLogs, pet.feedingSchedule]);
 
   const { icon: MoodIcon, color, message } = moodConfig[mood];
 
@@ -76,13 +79,13 @@ export function UserProfile({
         </Avatar>
         <div className="text-center sm:text-left flex-1">
           <div className="flex items-center justify-center sm:justify-start gap-3">
-            <h2 className="font-headline text-2xl font-bold text-gray-900">
+            <h2 className="font-headline text-3xl font-bold text-gray-900">
               {pet.name}
             </h2>
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <MoodIcon className={cn('w-8 h-8 cursor-pointer', color)} />
+                  <MoodIcon className={cn('w-8 h-8 cursor-pointer transition-transform hover:scale-110', color)} />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>
@@ -96,11 +99,11 @@ export function UserProfile({
           <div className="mt-4 flex justify-center sm:justify-start flex-wrap gap-4 text-gray-700">
             <div className="flex items-center gap-2">
               <Cake className="h-5 w-5 text-coral-blush" />
-              <span>{pet.age} years</span>
+              <span>{pet.age} years old</span>
             </div>
             <div className="flex items-center gap-2">
               <Weight className="h-5 w-5 text-mint-green" />
-              <span>{pet.weight} kg</span>
+              <span>{pet.weight} {pet.unitPreference === 'metric' ? 'kg' : 'lbs'}</span>
             </div>
           </div>
         </div>

@@ -65,9 +65,9 @@ export default {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
-        'mint-green': '#E8EAE6',
+        'mint-green': '#D7EAD9',
         'coral-blush': '#FAD3D3',
-        lavender: '#E3D5FF',
+        'lavender': '#EADDF5',
       },
       borderRadius: {
         lg: 'var(--radius)',

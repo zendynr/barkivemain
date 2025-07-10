@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, Timestamp, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import type { Memory } from '@/lib/types';
 
-export function useMemories(userId: string | null, petId: string | null) {
+export function useMemories(userId: string | null, petId: string | null, count?: number) {
   const [memories, setMemories] = useState<Memory[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -15,10 +15,11 @@ export function useMemories(userId: string | null, petId: string | null) {
       return;
     }
 
-    const q = query(
-      collection(db, 'users', userId, 'pets', petId, 'memories'),
-      orderBy('timestamp', 'desc')
-    );
+    const memoriesCollection = collection(db, 'users', userId, 'pets', petId, 'memories');
+    const q = count 
+      ? query(memoriesCollection, orderBy('timestamp', 'desc'), limit(count))
+      : query(memoriesCollection, orderBy('timestamp', 'desc'));
+
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const memoriesData: Memory[] = [];
@@ -38,7 +39,7 @@ export function useMemories(userId: string | null, petId: string | null) {
     });
 
     return () => unsubscribe();
-  }, [userId, petId]);
+  }, [userId, petId, count]);
 
   return { memories, loading };
 }

@@ -3,10 +3,12 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useActivityLogs } from '@/hooks/use-activity-logs';
 import { useFeedingLogs } from '@/hooks/use-feeding-logs';
+import { useMemories } from '@/hooks/use-memories';
 import { UserProfile } from '@/components/dashboard/UserProfile';
 import { ActivityTracker } from '@/components/dashboard/ActivityTracker';
 import { CareTips } from '@/components/dashboard/CareTips';
 import { MealTracker } from '@/components/dashboard/MealTracker';
+import { MemoriesCarousel } from '@/components/dashboard/MemoriesCarousel';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
@@ -14,8 +16,9 @@ export default function Home() {
   
   const { activityLogs, loading: activityLoading } = useActivityLogs(userId, activePet?.id);
   const { feedingLogs, loading: feedingLoading } = useFeedingLogs(userId, activePet?.id);
+  const { memories, loading: memoriesLoading } = useMemories(userId, activePet?.id);
   
-  const isLoading = petsLoading || !activePet || activityLoading || feedingLoading;
+  const isLoading = petsLoading || !activePet || activityLoading || feedingLoading || memoriesLoading;
 
   if (isLoading) {
     return (
@@ -29,6 +32,7 @@ export default function Home() {
             <div className="lg:col-span-2 flex flex-col gap-6">
               <Skeleton className="h-48 w-full rounded-2xl" />
               <Skeleton className="h-60 w-full rounded-2xl" />
+              <Skeleton className="h-56 w-full rounded-2xl" />
             </div>
             <div className="lg:col-span-1 flex flex-col gap-6">
               <Skeleton className="h-48 w-full rounded-2xl" />
@@ -50,19 +54,20 @@ export default function Home() {
       <div className="max-w-7xl mx-auto">
         <header className="mb-8">
           <h1 className="font-headline text-3xl font-bold text-gray-900">
-            Welcome back!
+            Let's check on {activePet.name} 🐕
           </h1>
-          <p className="text-gray-700">Here's a summary of how {activePet.name} is doing.</p>
+          <p className="text-gray-700">Here's a summary of how your best friend is doing.</p>
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 flex flex-col gap-6">
             <UserProfile pet={activePet} activityLogs={activityLogs} feedingLogs={feedingLogs} />
             <ActivityTracker activityLogs={activityLogs} />
+            <MemoriesCarousel memories={memories} />
           </div>
 
           <div className="lg:col-span-1 flex flex-col gap-6">
-            <MealTracker feedingLogs={feedingLogs} />
+            <MealTracker pet={activePet} feedingLogs={feedingLogs} />
             <CareTips pet={activePet} />
           </div>
         </div>
