@@ -70,10 +70,10 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#FCF7F8] flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm shadow-2xl bg-white/70 backdrop-blur-sm">
+    <div className="min-h-screen w-full bg-background flex items-center justify-center p-4">
+      <Card className="w-full max-w-sm shadow-2xl bg-card/70 backdrop-blur-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto bg-mint-green p-3 rounded-full mb-4">
+          <div className="mx-auto bg-primary p-3 rounded-full mb-4">
             <Dog className="h-8 w-8 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl">Welcome to Barkive</CardTitle>
@@ -133,7 +133,7 @@ export default function LoginPage() {
             )}
           </Button>
 
-          <p className="mt-4 text-center text-sm text-gray-600">
+          <p className="mt-4 text-center text-sm text-muted-foreground">
             Don&apos;t have an account?{' '}
             <Link href="/signup" className="font-semibold text-primary hover:underline">
               Sign up

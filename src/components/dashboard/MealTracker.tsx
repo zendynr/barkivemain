@@ -12,20 +12,21 @@ interface Meal {
   name: 'Breakfast' | 'Lunch' | 'Dinner' | 'Afternoon';
   status: MealStatus;
   time?: string;
-  color: string;
+  bgClass: string;
+  fgClass: string;
 }
 
 const mealConfig = {
-  morning: { name: 'Breakfast', color: 'hsl(var(--secondary))' },
-  afternoon: { name: 'Lunch', color: 'hsl(var(--primary))' },
-  evening: { name: 'Dinner', color: 'hsl(var(--accent))' },
-}
+  morning: { name: 'Breakfast', bgClass: 'bg-success', fgClass: 'text-success-foreground' },
+  afternoon: { name: 'Lunch', bgClass: 'bg-secondary', fgClass: 'text-secondary-foreground' },
+  evening: { name: 'Dinner', bgClass: 'bg-accent', fgClass: 'text-accent-foreground' },
+} as const;
 
 const mealTimeRanges = {
-  morning: { start: 4, end: 11},
+  morning: { start: 4, end: 11 },
   afternoon: { start: 11, end: 16 },
   evening: { start: 16, end: 22 },
-}
+};
 
 export function MealTracker({ pet, feedingLogs }: { pet: Pet; feedingLogs: FeedingLog[] }) {
   const [meals, setMeals] = useState<Meal[]>([]);
@@ -34,33 +35,33 @@ export function MealTracker({ pet, feedingLogs }: { pet: Pet; feedingLogs: Feedi
 
   useEffect(() => {
     const scheduledMeals = (pet.feedingSchedule || ['morning', 'afternoon', 'evening'])
-      .map(scheduleType => mealConfig[scheduleType])
+      .map(scheduleType => mealConfig[scheduleType as keyof typeof mealConfig])
       .filter(Boolean)
-      .map(config => ({...config, status: 'Not Eaten' as MealStatus}));
-    
+      .map(config => ({ ...config, status: 'Not Eaten' as MealStatus }));
+
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const todaysLogs = feedingLogs.filter(log => new Date(log.timestamp) >= startOfToday);
 
     const updatedMeals = scheduledMeals.map(meal => {
-        const scheduleType = Object.keys(mealConfig).find(key => mealConfig[key as keyof typeof mealConfig].name === meal.name) as keyof typeof mealTimeRanges | undefined;
+      const scheduleType = Object.keys(mealConfig).find(key => mealConfig[key as keyof typeof mealConfig].name === meal.name) as keyof typeof mealTimeRanges | undefined;
 
-        if (!scheduleType) return meal;
+      if (!scheduleType) return meal;
 
-        const timeRange = mealTimeRanges[scheduleType];
-        const logForMeal = todaysLogs.find(log => {
-            const logHour = new Date(log.timestamp).getHours();
-            return logHour >= timeRange.start && logHour < timeRange.end;
-        });
+      const timeRange = mealTimeRanges[scheduleType];
+      const logForMeal = todaysLogs.find(log => {
+        const logHour = new Date(log.timestamp).getHours();
+        return logHour >= timeRange.start && logHour < timeRange.end;
+      });
 
-        if (logForMeal) {
-            return {
-                ...meal,
-                status: 'Eaten' as MealStatus,
-                time: new Date(logForMeal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            };
-        }
-        return meal;
+      if (logForMeal) {
+        return {
+          ...meal,
+          status: 'Eaten' as MealStatus,
+          time: new Date(logForMeal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        };
+      }
+      return meal;
     });
 
     setMeals(updatedMeals as Meal[]);
@@ -68,12 +69,12 @@ export function MealTracker({ pet, feedingLogs }: { pet: Pet; feedingLogs: Feedi
     if (feedingLogs.length > prevLogsRef.current.length) {
       const newLog = feedingLogs[0];
       const logHour = new Date(newLog.timestamp).getHours();
-      
+
       let mealName: string | null = null;
       for (const scheduleType of (pet.feedingSchedule || [])) {
-        const range = mealTimeRanges[scheduleType];
-        if (logHour >= range.start && logHour < range.end) {
-          mealName = mealConfig[scheduleType].name;
+        const range = mealTimeRanges[scheduleType as keyof typeof mealTimeRanges];
+        if (range && logHour >= range.start && logHour < range.end) {
+          mealName = mealConfig[scheduleType as keyof typeof mealConfig].name;
           break;
         }
       }
@@ -86,16 +87,16 @@ export function MealTracker({ pet, feedingLogs }: { pet: Pet; feedingLogs: Feedi
     prevLogsRef.current = feedingLogs;
 
   }, [feedingLogs, pet.feedingSchedule]);
-  
+
   if (meals.length === 0) {
-    return null; // Or a placeholder card
+    return null;
   }
 
   return (
     <Card className="rounded-2xl shadow-md">
       <CardHeader>
-        <CardTitle className="font-headline flex items-center gap-2 text-gray-900 text-xl">
-          <Utensils className="text-coral-blush" />
+        <CardTitle className="font-headline flex items-center gap-2 text-foreground text-xl">
+          <Utensils className="text-primary" />
           Meal Tracker
         </CardTitle>
       </CardHeader>
@@ -106,20 +107,19 @@ export function MealTracker({ pet, feedingLogs }: { pet: Pet; feedingLogs: Feedi
               <div
                 className={cn(
                   'w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all duration-500 ease-in-out',
-                  meal.status === 'Eaten' ? 'bg-opacity-100' : 'bg-gray-200',
+                  meal.status === 'Eaten' ? meal.bgClass : 'bg-muted',
                   justUpdated === meal.name && 'animate-pulse-once'
                 )}
-                style={{ backgroundColor: meal.status === 'Eaten' ? meal.color : undefined }}
               >
                 <BowlIcon
                   className={cn(
                     'w-8 h-8 sm:w-10 sm:h-10 transition-colors',
-                    meal.status === 'Eaten' ? 'text-white' : 'text-gray-400'
+                    meal.status === 'Eaten' ? meal.fgClass : 'text-muted-foreground'
                   )}
                 />
               </div>
-              <p className="font-semibold text-gray-800 text-sm sm:text-base">{meal.name}</p>
-              <p className="text-xs text-gray-500 h-4">
+              <p className="font-semibold text-foreground text-sm sm:text-base">{meal.name}</p>
+              <p className="text-xs text-muted-foreground h-4">
                 {meal.status === 'Eaten' ? meal.time : '—'}
               </p>
             </div>

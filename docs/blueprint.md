@@ -12,25 +12,29 @@
 
 ## Style Guidelines:
 
-- Background: #FDFBF7
-- Primary accent: #D7EAD9 (mint green)
-- Secondary accent: #FAD3D3 (coral blush)
-- Tertiary accent: #EADDF5 (lavender)
-- Inactive or neutral: #E5E7EB (gray-100)
-- rounded-2xl corner radius
-- Soft drop shadows (shadow-md or shadow-lg)
-- Spacious padding (p-4, gap-4)
-- Grid or flex-based responsiveness
-- Ensure large interactive targets on mobile (min-w-[56px] min-h-[56px])
-- Font: 'Nunito', a warm, friendly sans-serif
-- Headings: text-xl to text-2xl, font-semibold
-- Body: text-sm to text-base, font-normal
-- Text color: text-gray-700 for body, text-gray-900 for headers
-- Use Lucide.dev or Tabler Icons
-- Icon style: rounded, minimal, soft-lined
-- Use filled icons for completed states (e.g., paw-print filled)
-- No emojis — icons only
-- Buttons: hover:scale-105, transition-transform
-- Cards: transition-opacity and shadow
-- Paw Tracker: custom @keyframes stamp for icon entrance
-- Rewards: glow or wiggle on streaks/badges
+- **Page background**: #F2ECEC
+- **Card background**: #FDFBFA
+- **Primary Accent**: #A31621
+- **Secondary Accent**: #FDD5D9
+- **Utility/Info**: #E2F0FF
+- **Success**: #D2F4E2
+- **Title text**: #1E1E1E
+- **Subtext**: #555
+- **Borders**: #DDD
+- **Inactive or neutral**: #E5E7EB (gray-100)
+- **Corner radius**: rounded-2xl
+- **Shadows**: Soft drop shadows (shadow-md or shadow-lg)
+- **Padding**: Spacious padding (p-4, gap-4)
+- **Layout**: Grid or flex-based responsiveness
+- **Mobile targets**: Ensure large interactive targets (min-w-[56px] min-h-[56px])
+- **Font**: 'Nunito', a warm, friendly sans-serif
+- **Headings**: text-xl to text-2xl, font-semibold
+- **Body**: text-sm to text-base, font-normal
+- **Text color**: #555 for body, #1E1E1E for headers
+- **Icons**: Lucide.dev or Tabler Icons, rounded, minimal, soft-lined
+- **Icon states**: Use filled icons for completed states (e.g., paw-print filled)
+- **Interactions**:
+    - **Buttons**: hover:scale-105, transition-transform
+    - **Cards**: transition-opacity and shadow
+    - **Paw Tracker**: custom @keyframes stamp for icon entrance
+    - **Rewards**: glow or wiggle on streaks/badges
