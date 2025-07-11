@@ -104,6 +104,25 @@ export const addHealthLog = (
     return addDoc(getHealthLogsCollection(userId, petId), logData);
 }
 
+export const updateHealthLog = (
+    userId: string,
+    petId: string,
+    logId: string,
+    logData: Partial<Omit<HealthLog, 'id'>>
+) => {
+    const logDocRef = doc(db, 'users', userId, 'pets', petId, 'healthLogs', logId);
+    return updateDoc(logDocRef, logData);
+}
+
+export const deleteHealthLog = (
+    userId: string,
+    petId: string,
+    logId: string
+) => {
+    const logDocRef = doc(db, 'users', userId, 'pets', petId, 'healthLogs', logId);
+    return deleteDoc(logDocRef);
+}
+
 export const addReminder = (
     userId: string,
     petId: string,
@@ -112,6 +131,16 @@ export const addReminder = (
     return addDoc(getRemindersCollection(userId, petId), {
       ...reminderData,
     });
+}
+
+export const updateReminder = (
+    userId: string,
+    petId: string,
+    reminderId: string,
+    reminderData: Partial<Omit<Reminder, 'id'>>
+) => {
+    const reminderDocRef = doc(db, 'users', userId, 'pets', petId, 'reminders', reminderId);
+    return updateDoc(reminderDocRef, reminderData);
 }
 
 export const deleteReminder = (

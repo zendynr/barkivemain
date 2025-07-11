@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
@@ -13,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Pencil, Trash2 } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -28,16 +29,26 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/use-auth';
 import { useHealthLogs } from '@/hooks/use-health-logs';
 import { useReminders } from '@/hooks/use-reminders';
-import { addHealthLog, addReminder, deleteReminder } from '@/lib/firebase/firestore';
+import { addHealthLog, addReminder, deleteReminder, updateHealthLog, updateReminder, deleteHealthLog } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import type { HealthLog, Reminder } from '@/lib/types';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 
 // --- Dialog and Forms ---
 const logSchema = z.object({
   type: z.enum(['vet-visit', 'vaccination', 'grooming', 'weight', 'temperature', 'medication']),
   title: z.string().min(1, 'Title is required.'),
-  notes: z.string(),
+  notes: z.string().optional(),
   timestamp: z.date(),
   value: z.string().optional(),
 });
@@ -49,14 +60,17 @@ const reminderSchema = z.object({
   notes: z.string().optional(),
 });
 
-function AddHealthEventDialog({ open, onOpenChange, onAddLog, onAddReminder }: { 
+type EventData = HealthLog | Reminder;
+
+function AddHealthEventDialog({ open, onOpenChange, onSave, initialData }: { 
   open: boolean; 
   onOpenChange: (open: boolean) => void;
-  onAddLog: (data: z.infer<typeof logSchema>) => Promise<void>;
-  onAddReminder: (data: z.infer<typeof reminderSchema>) => Promise<void>;
+  onSave: (data: z.infer<typeof logSchema> | z.infer<typeof reminderSchema>, id?: string) => Promise<void>;
+  initialData: EventData | null;
 }) {
-  const { toast } = useToast();
-  
+  const isEditing = !!initialData;
+  const isLog = !initialData || 'timestamp' in initialData;
+
   const logForm = useForm<z.infer<typeof logSchema>>({
     resolver: zodResolver(logSchema),
     defaultValues: { type: 'vet-visit', title: '', notes: '', timestamp: new Date(), value: '' },
@@ -67,33 +81,63 @@ function AddHealthEventDialog({ open, onOpenChange, onAddLog, onAddReminder }: {
     defaultValues: { type: 'appointment', name: '', due: new Date(), notes: '' },
   });
 
+  useEffect(() => {
+    if (initialData) {
+      if ('timestamp' in initialData) { // It's a HealthLog
+        logForm.reset({
+          type: initialData.type,
+          title: initialData.title,
+          notes: initialData.notes || '',
+          timestamp: new Date(initialData.timestamp),
+          value: initialData.value?.toString() || '',
+        });
+      } else { // It's a Reminder
+        reminderForm.reset({
+          type: initialData.type,
+          name: initialData.name,
+          notes: initialData.notes || '',
+          due: new Date(initialData.due),
+        });
+      }
+    } else {
+      logForm.reset({ type: 'vet-visit', title: '', notes: '', timestamp: new Date(), value: '' });
+      reminderForm.reset({ type: 'appointment', name: '', due: new Date(), notes: '' });
+    }
+  }, [initialData, logForm, reminderForm]);
+
+
   const handleLogSubmit = async (values: z.infer<typeof logSchema>) => {
-    await onAddLog(values);
+    await onSave(values, initialData?.id);
     onOpenChange(false);
-    logForm.reset();
   };
   
   const handleReminderSubmit = async (values: z.infer<typeof reminderSchema>) => {
-    await onAddReminder(values);
+    await onSave(values, initialData?.id);
     onOpenChange(false);
-    reminderForm.reset();
   };
+
+  const currentTab = isEditing ? (isLog ? 'log' : 'reminder') : 'log';
+  const TabsValue = ({ value, children }: { value: string; children: React.ReactNode }) => isEditing ? (value === currentTab ? <>{children}</> : null) : <TabsContent value={value}>{children}</TabsContent>;
+  const FormComponent = isLog ? logForm : reminderForm;
+  const handleSubmit = isLog ? handleLogSubmit : handleReminderSubmit;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Health Event</DialogTitle>
+          <DialogTitle>{isEditing ? 'Edit' : 'Add'} Health Event</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="log" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="log">Log Event</TabsTrigger>
-            <TabsTrigger value="reminder">Set Reminder</TabsTrigger>
-          </TabsList>
-          <TabsContent value="log" className="pt-4">
+        <Tabs defaultValue={currentTab} className="w-full">
+          {!isEditing && (
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="log">Log Event</TabsTrigger>
+              <TabsTrigger value="reminder">Set Reminder</TabsTrigger>
+            </TabsList>
+          )}
+
+          <TabsValue value="log">
             <Form {...logForm}>
-              <form onSubmit={logForm.handleSubmit(handleLogSubmit)} className="space-y-4">
-                {/* Log Event Form Fields */}
+              <form onSubmit={logForm.handleSubmit(handleLogSubmit)} className="space-y-4 pt-4">
                 <FormField control={logForm.control} name="type" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Type</FormLabel>
@@ -133,15 +177,15 @@ function AddHealthEventDialog({ open, onOpenChange, onAddLog, onAddReminder }: {
                 )}/>
                 <DialogFooter>
                   <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                  <Button type="submit">Save Log</Button>
+                  <Button type="submit">{isEditing ? 'Save Changes' : 'Save Log'}</Button>
                 </DialogFooter>
               </form>
             </Form>
-          </TabsContent>
-          <TabsContent value="reminder" className="pt-4">
+          </TabsValue>
+
+          <TabsValue value="reminder">
             <Form {...reminderForm}>
-              <form onSubmit={reminderForm.handleSubmit(handleReminderSubmit)} className="space-y-4">
-                {/* Reminder Form Fields */}
+              <form onSubmit={reminderForm.handleSubmit(handleReminderSubmit)} className="space-y-4 pt-4">
                 <FormField control={reminderForm.control} name="type" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Type</FormLabel>
@@ -176,11 +220,11 @@ function AddHealthEventDialog({ open, onOpenChange, onAddLog, onAddReminder }: {
                 )}/>
                 <DialogFooter>
                   <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                  <Button type="submit">Set Reminder</Button>
+                  <Button type="submit">{isEditing ? 'Save Changes' : 'Set Reminder'}</Button>
                 </DialogFooter>
               </form>
             </Form>
-          </TabsContent>
+          </TabsValue>
         </Tabs>
       </DialogContent>
     </Dialog>
@@ -235,7 +279,7 @@ function HealthProgressRing({ score }: { score: number }) {
   );
 }
 
-function RemindersCard({ reminders, onComplete }: { reminders: Reminder[]; onComplete: (id: string) => void }) {
+function RemindersCard({ reminders, onEdit, onDelete }: { reminders: Reminder[]; onEdit: (reminder: Reminder) => void; onDelete: (id: string, type: 'reminder') => void; }) {
   const [isClient, setIsClient] = useState(false);
   useEffect(() => {
     setIsClient(true);
@@ -278,10 +322,16 @@ function RemindersCard({ reminders, onComplete }: { reminders: Reminder[]; onCom
                   <AccordionContent>
                     <div className="pl-12 space-y-4">
                         {reminder.notes && <p className="text-gray-700 text-sm">Notes: {reminder.notes}</p>}
-                        <Button size="sm" variant="outline" onClick={() => onComplete(reminder.id)}>
-                            <Check className="mr-2 h-4 w-4" />
-                            Mark as Done
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={() => onEdit(reminder)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit
+                          </Button>
+                           <Button size="sm" variant="destructive" onClick={() => onDelete(reminder.id, 'reminder')}>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                          </Button>
+                        </div>
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -296,7 +346,7 @@ function RemindersCard({ reminders, onComplete }: { reminders: Reminder[]; onCom
   );
 }
 
-function HealthTimeline({ events }: { events: HealthLog[] }) {
+function HealthTimeline({ events, onEdit, onDelete }: { events: HealthLog[]; onEdit: (log: HealthLog) => void; onDelete: (id: string, type: 'log') => void; }) {
   const sortedEvents = [...events].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   return (
     <Card className="rounded-2xl shadow-md">
@@ -310,16 +360,22 @@ function HealthTimeline({ events }: { events: HealthLog[] }) {
             {sortedEvents.map(event => {
               const {icon: Icon, color} = timelineIcons[event.type];
               return (
-                <div key={event.id} className="flex gap-4 items-start pl-0 relative">
+                <div key={event.id} className="group flex gap-4 items-start pl-0 relative">
                     <div className="absolute left-5 -translate-x-1/2 mt-1.5 z-10 bg-background p-1 rounded-full">
                       <div className={cn('p-2 rounded-full', color.replace('text-', 'bg-') + '/20')}>
                         <Icon className={cn('w-5 h-5', color)} />
                       </div>
                     </div>
                     <div className="pl-12 w-full">
-                      <div className="flex justify-between items-center">
-                          <p className="font-bold text-gray-900">{event.title}</p>
-                          <p className="text-xs text-gray-500">{format(new Date(event.timestamp), 'MMM d, yyyy')}</p>
+                      <div className="flex justify-between items-start">
+                          <div>
+                            <p className="font-bold text-gray-900">{event.title}</p>
+                            <p className="text-xs text-gray-500">{format(new Date(event.timestamp), 'MMM d, yyyy')}</p>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(event)}><Pencil className="w-4 h-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => onDelete(event.id, 'log')}><Trash2 className="w-4 h-4" /></Button>
+                          </div>
                       </div>
                       <p className="text-sm text-gray-700">{event.notes}</p>
                     </div>
@@ -376,7 +432,13 @@ export default function HealthPage() {
   const { userId, petId } = useAuth();
   const { healthLogs, loading: healthLogsLoading } = useHealthLogs(userId, petId);
   const { reminders, loading: remindersLoading } = useReminders(userId, petId);
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<EventData | null>(null);
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<{id: string, type: 'log' | 'reminder'} | null>(null);
+
   const { toast } = useToast();
   
   const loading = healthLogsLoading || remindersLoading;
@@ -385,54 +447,69 @@ export default function HealthPage() {
   useEffect(() => {
     setIsClient(true);
   }, []);
-
-  const handleAddHealthLog = async (data: z.infer<typeof logSchema>) => {
-    if (!userId || !petId) return;
-    try {
-      const logData: Omit<HealthLog, 'id'> = {
-        type: data.type as HealthLog['type'],
-        title: data.title,
-        notes: data.notes,
-        timestamp: data.timestamp,
-      };
-
-      if (data.value && data.value.trim() !== '') {
-        logData.value = (data.type === 'weight' || data.type === 'temperature') ? parseFloat(data.value) : data.value;
-      }
-
-      await addHealthLog(userId, petId, logData);
-      toast({ title: 'Success', description: 'Health event logged.' });
-    } catch (e) {
-      console.error(e);
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to log health event.' });
-    }
-  };
-
-  const handleAddReminder = async (data: z.infer<typeof reminderSchema>) => {
-    if (!userId || !petId) return;
-    try {
-      const reminderData: Omit<Reminder, 'id'> = {
-        ...data,
-        type: data.type as Reminder['type'],
-      };
-      await addReminder(userId, petId, reminderData);
-      toast({ title: 'Success', description: 'Reminder set.' });
-    } catch (e) {
-      console.error(e);
-      toast({ variant: 'destructive', title: 'Error', description: 'Failed to set reminder.' });
-    }
-  };
   
-  const handleCompleteReminder = async (reminderId: string) => {
+  const handleOpenDialog = (event: EventData | null = null) => {
+    setEditingEvent(event);
+    setIsDialogOpen(true);
+  }
+
+  const handleCloseDialog = () => {
+    setEditingEvent(null);
+    setIsDialogOpen(false);
+  }
+
+  const handleSaveEvent = async (data: z.infer<typeof logSchema> | z.infer<typeof reminderSchema>, id?: string) => {
     if (!userId || !petId) return;
     try {
-        await deleteReminder(userId, petId, reminderId);
-        toast({ title: 'Reminder Completed!', description: 'Great job staying on top of things.' });
+      if ('timestamp' in data) { // It's a HealthLog
+        const logData = { ...data, value: data.value ? parseFloat(data.value) : undefined };
+        if (id) {
+          await updateHealthLog(userId, petId, id, logData);
+          toast({ title: 'Success', description: 'Health event updated.' });
+        } else {
+          await addHealthLog(userId, petId, logData);
+          toast({ title: 'Success', description: 'Health event logged.' });
+        }
+      } else { // It's a Reminder
+        if (id) {
+          await updateReminder(userId, petId, id, data);
+          toast({ title: 'Success', description: 'Reminder updated.' });
+        } else {
+          await addReminder(userId, petId, data);
+          toast({ title: 'Success', description: 'Reminder set.' });
+        }
+      }
     } catch (e) {
-        console.error(e);
-        toast({ variant: 'destructive', title: 'Error', description: 'Failed to complete reminder.' });
+      console.error(e);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to save event.' });
+    }
+  };
+
+  const handleDeleteRequest = (id: string, type: 'log' | 'reminder') => {
+    setEventToDelete({ id, type });
+    setIsDeleteDialogOpen(true);
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!userId || !petId || !eventToDelete) return;
+
+    try {
+      if (eventToDelete.type === 'log') {
+        await deleteHealthLog(userId, petId, eventToDelete.id);
+        toast({ title: 'Success', description: 'Health log deleted.' });
+      } else {
+        await deleteReminder(userId, petId, eventToDelete.id);
+        toast({ title: 'Success', description: 'Reminder deleted.' });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ variant: 'destructive', title: 'Error', description: 'Failed to delete event.' });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setEventToDelete(null);
     }
   }
+
 
   const { healthScore, weightTrend } = useMemo(() => {
     if (!isClient) return { healthScore: 0, weightTrend: [] };
@@ -484,18 +561,36 @@ export default function HealthPage() {
   return (
     <div className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
        <AddHealthEventDialog 
-        open={isDialogOpen} 
-        onOpenChange={setIsDialogOpen} 
-        onAddLog={handleAddHealthLog} 
-        onAddReminder={handleAddReminder} 
+          open={isDialogOpen} 
+          onOpenChange={handleCloseDialog} 
+          onSave={handleSaveEvent}
+          initialData={editingEvent}
       />
+
+       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this event.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="max-w-7xl mx-auto">
         <header className="flex items-center justify-between mb-8">
             <div>
               <h1 className="font-headline text-3xl font-bold text-gray-900">Health Overview</h1>
               <p className="text-gray-700">Key health metrics, history, and reminders.</p>
             </div>
-             <Button onClick={() => setIsDialogOpen(true)} className="rounded-full shadow-sm">
+             <Button onClick={() => handleOpenDialog()} className="rounded-full shadow-sm">
                 <PlusCircle className="mr-2 h-5 w-5" />
                 Add Event
             </Button>
@@ -504,12 +599,12 @@ export default function HealthPage() {
         <main className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 space-y-6">
                <VitalsChart data={weightTrend} />
-               <HealthTimeline events={healthLogs} />
+               <HealthTimeline events={healthLogs} onEdit={handleOpenDialog} onDelete={handleDeleteRequest} />
             </div>
              <div className="lg:col-span-1 space-y-6">
                 <HealthProgressRing score={healthScore} />
                 {healthScore >= 80 && isClient && <EncouragementCard />}
-                <RemindersCard reminders={reminders} onComplete={handleCompleteReminder} />
+                <RemindersCard reminders={reminders} onEdit={handleOpenDialog} onDelete={handleDeleteRequest} />
              </div>
         </main>
       </div>
