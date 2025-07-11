@@ -3,11 +3,9 @@
 import { useAuth } from '@/hooks/use-auth';
 import { useActivityLogs } from '@/hooks/use-activity-logs';
 import { useFeedingLogs } from '@/hooks/use-feeding-logs';
-import { useMemories } from '@/hooks/use-memories';
 import { UserProfile } from '@/components/dashboard/UserProfile';
 import { ActivityTracker } from '@/components/dashboard/ActivityTracker';
 import { CareTips } from '@/components/dashboard/CareTips';
-import { MemoriesCarousel } from '@/components/dashboard/MemoriesCarousel';
 import { MealTracker } from '@/components/dashboard/MealTracker';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -16,9 +14,8 @@ export default function Home() {
   
   const { activityLogs, loading: activityLoading } = useActivityLogs(userId, activePet?.id);
   const { feedingLogs, loading: feedingLoading } = useFeedingLogs(userId, activePet?.id);
-  const { memories, loading: memoriesLoading } = useMemories(userId, activePet?.id);
   
-  const isLoading = petsLoading || !activePet || activityLoading || feedingLoading || memoriesLoading;
+  const isLoading = petsLoading || !activePet || activityLoading || feedingLoading;
 
   if (isLoading) {
     return (
@@ -32,7 +29,6 @@ export default function Home() {
             <div className="lg:col-span-2 flex flex-col gap-6">
               <Skeleton className="h-48 w-full rounded-2xl" />
               <Skeleton className="h-60 w-full rounded-2xl" />
-              <Skeleton className="h-56 w-full rounded-2xl" />
             </div>
             <div className="lg:col-span-1 flex flex-col gap-6">
               <Skeleton className="h-48 w-full rounded-2xl" />
@@ -63,12 +59,11 @@ export default function Home() {
           <div className="lg:col-span-2 flex flex-col gap-6">
             <UserProfile pet={activePet} activityLogs={activityLogs} feedingLogs={feedingLogs} />
             <ActivityTracker activityLogs={activityLogs} />
-            <MemoriesCarousel memories={memories} />
           </div>
 
           <div className="lg:col-span-1 flex flex-col gap-6">
             <CareTips pet={activePet} />
-            <MealTracker feedingLogs={feedingLogs} />
+            <MealTracker pet={activePet} feedingLogs={feedingLogs} />
           </div>
         </div>
       </div>

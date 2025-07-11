@@ -4,7 +4,7 @@ import type { Pet, ActivityLog, FeedingLog } from '@/lib/types';
 import { useMemo } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
-import { Weight, Cake, Smile, Meh, Frown } from 'lucide-react';
+import { Weight, Cake, Smile, Meh, Frown, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -12,6 +12,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import Link from 'next/link';
+import { Button } from '../ui/button';
 
 type Mood = 'Happy' | 'Neutral' | 'Grumpy';
 
@@ -73,10 +75,27 @@ export function UserProfile({
   return (
     <Card className="rounded-2xl shadow-md overflow-hidden">
       <CardContent className="p-6 flex flex-col sm:flex-row items-center gap-6">
-        <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-white shadow-lg">
-          <AvatarImage src={pet.avatarUrl} alt={pet.name} data-ai-hint="dog portrait" />
-          <AvatarFallback>{pet.name.charAt(0)}</AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-4 border-white shadow-lg">
+            <AvatarImage src={pet.avatarUrl} alt={pet.name} data-ai-hint="dog portrait" />
+            <AvatarFallback>{pet.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+           <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild size="icon" className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full bg-mint-green hover:bg-mint-green/90 border-2 border-white">
+                      <Link href="/memories">
+                        <PlusCircle className="h-5 w-5 text-white" />
+                        <span className="sr-only">Add Memory</span>
+                      </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Add a new memory</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+        </div>
         <div className="text-center sm:text-left flex-1">
           <div className="flex items-center justify-center sm:justify-start gap-3">
             <h2 className="font-headline text-3xl font-bold text-gray-900">
