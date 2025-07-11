@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import type { ActivityLog } from '@/lib/types';
+import type { ActivityLog, Pet } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -32,7 +33,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { PlusCircle, Clock, Flame, Trophy, Award, Footprints } from 'lucide-react';
+import { PlusCircle, Clock, Flame, Trophy, Award, Footprints, Pencil, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   BarChart,
@@ -47,8 +48,18 @@ import {
 } from 'recharts';
 import { useAuth } from '@/hooks/use-auth';
 import { useActivityLogs } from '@/hooks/use-activity-logs';
-import { addActivityLog } from '@/lib/firebase/firestore';
+import { addActivityLog, updateActivityLog, deleteActivityLog } from '@/lib/firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const formSchema = z.object({
   type: z.enum(['walk', 'play', 'training']),
@@ -56,33 +67,62 @@ const formSchema = z.object({
   notes: z.string().optional(),
 });
 
-function AddActivityDialog({ onAddActivity, open, onOpenChange }: { onAddActivity: (newLog: Omit<ActivityLog, 'id' | 'timestamp'>) => Promise<void>; open: boolean; onOpenChange: (open: boolean) => void; }) {
+function ActivityDialog({ 
+    onSave, 
+    open, 
+    onOpenChange, 
+    initialData 
+}: { 
+    onSave: (data: z.infer<typeof formSchema>, id?: string) => Promise<void>; 
+    open: boolean; 
+    onOpenChange: (open: boolean) => void;
+    initialData?: ActivityLog | null;
+}) {
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: initialData ? {
+        type: initialData.type,
+        duration: initialData.duration,
+        notes: initialData.notes || '',
+    } : {
       type: 'walk',
       duration: 30,
       notes: '',
     },
   });
 
+  useEffect(() => {
+    if (initialData) {
+        form.reset({
+            type: initialData.type,
+            duration: initialData.duration,
+            notes: initialData.notes || '',
+        });
+    } else {
+        form.reset({
+            type: 'walk',
+            duration: 30,
+            notes: '',
+        });
+    }
+  }, [initialData, form]);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    await onAddActivity(values);
+    await onSave(values, initialData?.id);
     toast({
       title: 'Success!',
       description: `Logged a ${values.duration} minute ${values.type}.`,
     });
     onOpenChange(false);
-    form.reset();
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Log Activity</DialogTitle>
+          <DialogTitle>{initialData ? 'Edit Activity' : 'Log Activity'}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -138,7 +178,9 @@ function AddActivityDialog({ onAddActivity, open, onOpenChange }: { onAddActivit
               <DialogClose asChild>
                 <Button type="button" variant="ghost">Cancel</Button>
               </DialogClose>
-              <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">Add Entry</Button>
+              <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
+                {initialData ? 'Save Changes' : 'Add Entry'}
+              </Button>
             </DialogFooter>
           </form>
         </Form>
@@ -147,11 +189,27 @@ function AddActivityDialog({ onAddActivity, open, onOpenChange }: { onAddActivit
   );
 }
 
-function ActivityList({ logs, onAdd, isLoading }: { logs: ActivityLog[]; onAdd: () => void; isLoading: boolean; }) {
+function ActivityList({ logs, onAdd, onEdit, onDelete, isLoading }: { logs: ActivityLog[]; onAdd: () => void; onEdit: (log: ActivityLog) => void; onDelete: (logId: string) => void; isLoading: boolean; }) {
   const [isClient, setIsClient] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [logToDelete, setLogToDelete] = useState<string | null>(null);
+
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  const handleDeleteRequest = (logId: string) => {
+    setLogToDelete(logId);
+    setIsDeleteDialogOpen(true);
+  }
+
+  const handleDeleteConfirm = () => {
+    if (logToDelete) {
+      onDelete(logToDelete);
+      setLogToDelete(null);
+    }
+    setIsDeleteDialogOpen(false);
+  }
 
   if (isLoading) {
       return (
@@ -180,25 +238,51 @@ function ActivityList({ logs, onAdd, isLoading }: { logs: ActivityLog[]; onAdd: 
   const sortedLogs = [...logs].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
   return (
-    <div className="space-y-4">
-      {sortedLogs.map((log) => (
-        <Card key={log.id} className="rounded-2xl shadow-sm animate-in fade-in-50 duration-300">
-          <CardContent className="p-4 flex items-start justify-between">
-            <div className="flex-1">
-              <p className="font-bold text-lg text-gray-900 capitalize">{log.type}</p>
-              <p className="text-gray-700">{log.duration} minutes</p>
-              {log.notes && <p className="text-sm text-gray-500 mt-2 italic">"{log.notes}"</p>}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500 ml-4 pt-1">
-              <Clock className="w-4 h-4" />
-              <span>
-                {isClient ? new Date(log.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    <>
+      <div className="space-y-4">
+        {sortedLogs.map((log) => (
+          <Card key={log.id} className="rounded-2xl shadow-sm animate-in fade-in-50 duration-300">
+            <CardContent className="p-4 flex items-start justify-between">
+              <div className="flex-1">
+                <p className="font-bold text-lg text-gray-900 capitalize">{log.type}</p>
+                <p className="text-gray-700">{log.duration} minutes</p>
+                {log.notes && <p className="text-sm text-gray-500 mt-2 italic">"{log.notes}"</p>}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-sm text-gray-500 ml-4 pt-1">
+                  <Clock className="w-4 h-4" />
+                  <span>
+                    {isClient ? new Date(log.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : null}
+                  </span>
+                </div>
+                 <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEdit(log)}>
+                    <Pencil className="w-4 h-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteRequest(log.id)}>
+                    <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete this activity log.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -314,8 +398,8 @@ function StreakCard({ logs }: { logs: ActivityLog[] }) {
     );
 }
 
-function WeeklyGoalCard({ logs }: { logs: ActivityLog[] }) {
-    const weeklyGoal = 300; // 300 minutes
+function WeeklyGoalCard({ logs, pet }: { logs: ActivityLog[], pet: Pet }) {
+    const weeklyGoal = pet.trainingGoal || 300; // Default to 300 minutes
     const [totalMinutes, setTotalMinutes] = useState(0);
     
     useEffect(() => {
@@ -405,12 +489,23 @@ function BadgesCard({ logs }: { logs: ActivityLog[] }) {
 }
 
 export default function ActivityPage() {
-  const { userId, petId } = useAuth();
+  const { userId, petId, activePet } = useAuth();
   const { activityLogs, loading } = useActivityLogs(userId, petId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<ActivityLog | null>(null);
   const { toast } = useToast();
 
-  const handleAddActivity = async (newLogData: Omit<ActivityLog, 'id' | 'timestamp'>) => {
+  const handleOpenDialog = (log?: ActivityLog) => {
+    setEditingLog(log || null);
+    setIsDialogOpen(true);
+  };
+  
+  const handleCloseDialog = () => {
+    setEditingLog(null);
+    setIsDialogOpen(false);
+  }
+
+  const handleSaveActivity = async (data: z.infer<typeof formSchema>, id?: string) => {
     if (!userId || !petId) {
        toast({
         variant: 'destructive',
@@ -420,16 +515,45 @@ export default function ActivityPage() {
       return;
     }
     try {
-      await addActivityLog(userId, petId, newLogData);
+      if (id) {
+        await updateActivityLog(userId, petId, id, data);
+        toast({ title: 'Success!', description: 'Activity log updated.' });
+      } else {
+        await addActivityLog(userId, petId, data);
+        toast({ title: 'Success!', description: 'New activity logged.' });
+      }
     } catch (error) {
-      console.error("Failed to add activity log: ", error);
+      console.error("Failed to save activity log: ", error);
       toast({
         variant: 'destructive',
-        title: 'Error logging activity',
+        title: 'Error saving activity',
         description: 'Could not save the activity log. Please try again.',
       });
     }
   };
+
+  const handleDeleteActivity = async (logId: string) => {
+    if (!userId || !petId) return;
+    try {
+        await deleteActivityLog(userId, petId, logId);
+        toast({ title: 'Activity Deleted', description: 'The log has been removed.' });
+    } catch (error) {
+        console.error("Failed to delete activity log: ", error);
+        toast({
+            variant: 'destructive',
+            title: 'Error',
+            description: 'Could not delete the activity log. Please try again.',
+        });
+    }
+  };
+
+  if (!activePet) {
+      return (
+         <div className="flex h-screen w-screen items-center justify-center">
+            <Skeleton className="h-full w-full" />
+        </div>
+      )
+  }
 
   return (
     <div className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
@@ -440,7 +564,7 @@ export default function ActivityPage() {
               <p className="text-gray-700">Keep track of your pet's weekly exercise.</p>
             </div>
              <Button 
-                onClick={() => setIsDialogOpen(true)}
+                onClick={() => handleOpenDialog()}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 transition-transform hover:scale-105 rounded-full shadow-sm"
               >
                 <PlusCircle className="mr-2 h-5 w-5" />
@@ -448,12 +572,17 @@ export default function ActivityPage() {
             </Button>
         </header>
         
-        <AddActivityDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} onAddActivity={handleAddActivity} />
+        <ActivityDialog 
+          open={isDialogOpen} 
+          onOpenChange={handleCloseDialog} 
+          onSave={handleSaveActivity}
+          initialData={editingLog}
+        />
 
         <main className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <StreakCard logs={activityLogs} />
-            <WeeklyGoalCard logs={activityLogs} />
+            <WeeklyGoalCard logs={activityLogs} pet={activePet} />
           </div>
 
           <BadgesCard logs={activityLogs} />
@@ -461,10 +590,18 @@ export default function ActivityPage() {
 
           <div>
              <h2 className="font-headline text-2xl font-semibold text-gray-900 mb-4">Recent Logs</h2>
-            <ActivityList logs={activityLogs} onAdd={() => setIsDialogOpen(true)} isLoading={loading} />
+            <ActivityList 
+              logs={activityLogs} 
+              onAdd={() => handleOpenDialog()}
+              onEdit={handleOpenDialog}
+              onDelete={handleDeleteActivity}
+              isLoading={loading}
+            />
           </div>
         </main>
       </div>
     </div>
   );
 }
+
+    
