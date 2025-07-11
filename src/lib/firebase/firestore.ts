@@ -1,6 +1,7 @@
 import {
   collection,
   addDoc,
+  updateDoc,
   serverTimestamp,
   Timestamp,
   doc,
@@ -61,6 +62,26 @@ export const addActivityLog = (
     };
     return addDoc(getActivityLogsCollection(userId, petId), dataWithTimestamp);
 };
+
+export const updateActivityLog = (
+    userId: string,
+    petId: string,
+    logId: string,
+    logData: Partial<Omit<ActivityLog, 'id' | 'timestamp'>>
+) => {
+    const logDocRef = doc(db, 'users', userId, 'pets', petId, 'activityLogs', logId);
+    return updateDoc(logDocRef, logData);
+};
+
+export const deleteActivityLog = (
+    userId: string,
+    petId: string,
+    logId: string
+) => {
+    const logDocRef = doc(db, 'users', userId, 'pets', petId, 'activityLogs', logId);
+    return deleteDoc(logDocRef);
+};
+
 
 export const addMemory = (
   userId: string,
