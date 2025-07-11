@@ -196,6 +196,10 @@ function AddFeedingDialog({ onAddFeeding, open, onOpenChange }: { onAddFeeding: 
 }
 
 function FeedingList({ logs, onAdd, isLoading }: { logs: FeedingLog[], onAdd: () => void, isLoading: boolean }) {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
   
   if (isLoading) {
     return (
@@ -244,7 +248,7 @@ function FeedingList({ logs, onAdd, isLoading }: { logs: FeedingLog[], onAdd: ()
                 <div className="flex items-center gap-2 text-sm text-gray-500 pt-1">
                     <Clock className="w-4 h-4" />
                     <span>
-                    {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {isClient && new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                 </div>
               </div>

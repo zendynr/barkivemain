@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -176,6 +176,11 @@ export default function MemoriesPage() {
   const { memories, loading } = useMemories(userId, petId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleAddMemory = async (data: z.infer<typeof formSchema>) => {
      if (!userId || !petId) {
@@ -278,7 +283,7 @@ export default function MemoriesPage() {
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                                 <div className="absolute bottom-0 left-0 p-6">
                                     <h3 className="text-white font-bold text-2xl">{featuredMemory.caption}</h3>
-                                    <p className="text-gray-200 text-sm">{new Date(featuredMemory.timestamp).toLocaleDateString()}</p>
+                                    {isClient && <p className="text-gray-200 text-sm">{new Date(featuredMemory.timestamp).toLocaleDateString()}</p>}
                                 </div>
                             </div>
                         </Card>
@@ -304,9 +309,9 @@ export default function MemoriesPage() {
                                     </div>
                                     <div className="p-3 bg-white">
                                         <p className="font-semibold text-gray-800 truncate text-sm">{memory.caption}</p>
-                                        <p className="text-xs text-gray-500">
+                                        {isClient && <p className="text-xs text-gray-500">
                                         {new Date(memory.timestamp).toLocaleDateString()}
-                                        </p>
+                                        </p>}
                                     </div>
                                 </CardContent>
                             </Card>

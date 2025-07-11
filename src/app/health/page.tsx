@@ -257,7 +257,7 @@ function RemindersCard({ reminders, onComplete }: { reminders: Reminder[]; onCom
             {reminders.map((reminder) => {
               const { icon: Icon, color } = reminderIcons[reminder.type] || reminderIcons.medication;
               const dueDate = new Date(reminder.due);
-              const isOverdue = dueDate < new Date();
+              const isOverdue = isClient ? dueDate < new Date() : false;
               return (
                 <AccordionItem value={`item-${reminder.id}`} key={reminder.id}>
                   <AccordionTrigger>
@@ -297,6 +297,11 @@ function RemindersCard({ reminders, onComplete }: { reminders: Reminder[]; onCom
 }
 
 function HealthTimeline({ events }: { events: HealthLog[] }) {
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const sortedEvents = [...events].sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   return (
     <Card className="rounded-2xl shadow-md">
@@ -319,7 +324,7 @@ function HealthTimeline({ events }: { events: HealthLog[] }) {
                     <div className="pl-12 w-full">
                       <div className="flex justify-between items-center">
                           <p className="font-bold text-gray-900">{event.title}</p>
-                          <p className="text-xs text-gray-500">{format(new Date(event.timestamp), 'MMM d, yyyy')}</p>
+                          {isClient && <p className="text-xs text-gray-500">{format(new Date(event.timestamp), 'MMM d, yyyy')}</p>}
                       </div>
                       <p className="text-sm text-gray-700">{event.notes}</p>
                     </div>
@@ -458,7 +463,7 @@ export default function HealthPage() {
     return { healthScore: Math.min(score, 100), weightTrend: trend };
   }, [isClient, healthLogs]);
 
-  if (loading && isClient) {
+  if (loading && !isClient) {
       return (
          <div className="min-h-screen w-full p-4 sm:p-6 lg:p-8 pb-24 md:pb-8">
             <div className="max-w-7xl mx-auto">
