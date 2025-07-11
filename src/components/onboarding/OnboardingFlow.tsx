@@ -12,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
-import { Dog, Cat, Bird, Rabbit, Bone, Rocket, Sofa, Weight, Cake, Upload, Sparkles, PawPrint, ChevronLeft, ChevronRight, Scale, Dumbbell, Clock, Info } from 'lucide-react';
+import { Dog, Cat, Bird, Rabbit, Bone, Rocket, Sofa, Weight, Cake, Upload, Sparkles, PawPrint, ChevronLeft, ChevronRight, Scale, Dumbbell, Clock, Info, PlusCircle } from 'lucide-react';
 import type { Pet } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { Label } from '@/components/ui/label';
@@ -21,6 +21,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { dogBreeds, catBreeds, otherBreeds } from '@/lib/data/breeds';
+import Link from 'next/link';
 
 
 const ReactConfetti = dynamic(() => import('react-confetti'), { ssr: false });
@@ -258,11 +259,11 @@ export function OnboardingFlow() {
     <Step title="Tell us about their vitals.">
         <div className="space-y-6 w-full">
             <div>
-                 <Label>Age: <span className="text-primary font-bold">{formData.age} years</span></Label>
+                 <Label>Age: <span className="text-foreground font-bold">{formData.age} years</span></Label>
                 <Slider defaultValue={[5]} value={[formData.age || 5]} max={30} step={1} onValueChange={([val]) => updateFormData('age', val)} />
             </div>
             <div>
-                 <Label>Weight: <span className="text-primary font-bold">{formData.weight} {formData.unitPreference === 'metric' ? 'kg' : 'lbs'}</span></Label>
+                 <Label>Weight: <span className="text-foreground font-bold">{formData.weight} {formData.unitPreference === 'metric' ? 'kg' : 'lbs'}</span></Label>
                 <Slider defaultValue={[30]} value={[formData.weight || 30]} max={100} step={1} onValueChange={([val]) => updateFormData('weight', val)} />
             </div>
              <div>
