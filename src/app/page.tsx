@@ -7,7 +7,6 @@ import { useMemories } from '@/hooks/use-memories';
 import { UserProfile } from '@/components/dashboard/UserProfile';
 import { ActivityTracker } from '@/components/dashboard/ActivityTracker';
 import { CareTips } from '@/components/dashboard/CareTips';
-import { MealTracker } from '@/components/dashboard/MealTracker';
 import { MemoriesCarousel } from '@/components/dashboard/MemoriesCarousel';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -67,7 +66,6 @@ export default function Home() {
           </div>
 
           <div className="lg:col-span-1 flex flex-col gap-6">
-            <MealTracker pet={activePet} feedingLogs={feedingLogs} />
             <CareTips pet={activePet} />
           </div>
         </div>
