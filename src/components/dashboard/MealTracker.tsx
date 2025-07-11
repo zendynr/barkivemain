@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import type { FeedingLog, Pet } from '@/lib/types';
+import type { FeedingLog } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BowlIcon } from '@/components/icons';
 import { cn } from '@/lib/utils';
@@ -9,104 +9,77 @@ import { Utensils } from 'lucide-react';
 
 type MealStatus = 'Eaten' | 'Not Eaten';
 interface Meal {
-  name: 'Breakfast' | 'Lunch' | 'Dinner' | 'Afternoon';
+  name: 'Breakfast' | 'Lunch' | 'Dinner';
   status: MealStatus;
   time?: string;
   color: string;
 }
 
-const mealConfig = {
-  morning: { name: 'Breakfast', color: 'hsl(var(--secondary))' },
-  afternoon: { name: 'Lunch', color: 'hsl(var(--primary))' },
-  evening: { name: 'Dinner', color: 'hsl(var(--accent))' },
-}
-
-const mealTimeRanges = {
-  morning: { start: 4, end: 11},
-  afternoon: { start: 11, end: 16 },
-  evening: { start: 16, end: 22 },
-}
-
-export function MealTracker({ pet, feedingLogs }: { pet: Pet; feedingLogs: FeedingLog[] }) {
-  const [meals, setMeals] = useState<Meal[]>([]);
+export function MealTracker({ feedingLogs }: { feedingLogs: FeedingLog[] }) {
+  const [meals, setMeals] = useState<Meal[]>([
+    { name: 'Breakfast', status: 'Not Eaten', color: '#FAD3D3' },
+    { name: 'Lunch', status: 'Not Eaten', color: '#D7EAD9' },
+    { name: 'Dinner', status: 'Not Eaten', color: '#E5D4EF' },
+  ]);
   const [justUpdated, setJustUpdated] = useState<string | null>(null);
   const prevLogsRef = useRef<FeedingLog[]>(feedingLogs);
 
   useEffect(() => {
-    const scheduledMeals = (pet.feedingSchedule || ['morning', 'afternoon', 'evening'])
-      .map(scheduleType => mealConfig[scheduleType])
-      .filter(Boolean)
-      .map(config => ({...config, status: 'Not Eaten' as MealStatus}));
-    
     const today = new Date();
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const todaysLogs = feedingLogs.filter(log => new Date(log.timestamp) >= startOfToday);
 
-    const updatedMeals = scheduledMeals.map(meal => {
-        const scheduleType = Object.keys(mealConfig).find(key => mealConfig[key as keyof typeof mealConfig].name === meal.name) as keyof typeof mealTimeRanges | undefined;
+    const updatedMeals = meals.map((meal) => {
+      let logForMeal: FeedingLog | undefined;
+      if (meal.name === 'Breakfast') {
+        logForMeal = todaysLogs.find(log => { const h = new Date(log.timestamp).getHours(); return h >= 4 && h < 11; });
+      } else if (meal.name === 'Lunch') {
+        logForMeal = todaysLogs.find(log => { const h = new Date(log.timestamp).getHours(); return h >= 11 && h < 16; });
+      } else if (meal.name === 'Dinner') {
+        logForMeal = todaysLogs.find(log => { const h = new Date(log.timestamp).getHours(); return h >= 16 && h < 22; });
+      }
 
-        if (!scheduleType) return meal;
-
-        const timeRange = mealTimeRanges[scheduleType];
-        const logForMeal = todaysLogs.find(log => {
-            const logHour = new Date(log.timestamp).getHours();
-            return logHour >= timeRange.start && logHour < timeRange.end;
-        });
-
-        if (logForMeal) {
-            return {
-                ...meal,
-                status: 'Eaten' as MealStatus,
-                time: new Date(logForMeal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            };
-        }
-        return meal;
+      return logForMeal
+        ? { ...meal, status: 'Eaten' as MealStatus, time: new Date(logForMeal.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+        : { ...meal, status: 'Not Eaten' as MealStatus, time: undefined };
     });
 
     setMeals(updatedMeals as Meal[]);
 
     if (feedingLogs.length > prevLogsRef.current.length) {
-      const newLog = feedingLogs[0];
-      const logHour = new Date(newLog.timestamp).getHours();
-      
-      let mealName: string | null = null;
-      for (const scheduleType of (pet.feedingSchedule || [])) {
-        const range = mealTimeRanges[scheduleType];
-        if (logHour >= range.start && logHour < range.end) {
-          mealName = mealConfig[scheduleType].name;
-          break;
-        }
-      }
+      const newLog = feedingLogs.find(log => !prevLogsRef.current.some(prevLog => prevLog.id === log.id));
+      if (newLog) {
+          const logHour = new Date(newLog.timestamp).getHours();
+          let mealName: string | null = null;
+          if (logHour >= 4 && logHour < 11) mealName = 'Breakfast';
+          else if (logHour >= 11 && logHour < 16) mealName = 'Lunch';
+          else if (logHour >= 16 && logHour < 22) mealName = 'Dinner';
 
-      if (mealName) {
-        setJustUpdated(mealName);
-        setTimeout(() => setJustUpdated(null), 1000);
+          if (mealName) {
+              setJustUpdated(mealName);
+              setTimeout(() => setJustUpdated(null), 1000);
+          }
       }
     }
     prevLogsRef.current = feedingLogs;
-
-  }, [feedingLogs, pet.feedingSchedule]);
-  
-  if (meals.length === 0) {
-    return null; // Or a placeholder card
-  }
+  }, [feedingLogs]);
 
   return (
     <Card className="rounded-2xl shadow-md">
       <CardHeader>
         <CardTitle className="font-headline flex items-center gap-2 text-gray-900 text-xl">
           <Utensils className="text-coral-blush" />
-          Meal Tracker
+          Meal Completion
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-around gap-2 sm:gap-4">
+        <div className="flex justify-around gap-2 sm:gap-4 pt-2">
           {meals.map((meal) => (
             <div key={meal.name} className="flex flex-col items-center gap-2">
               <div
                 className={cn(
                   'w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center transition-all duration-500 ease-in-out',
-                  meal.status === 'Eaten' ? 'bg-opacity-100' : 'bg-gray-200',
+                  meal.status === 'Eaten' ? 'bg-opacity-100' : 'bg-gray-100',
                   justUpdated === meal.name && 'animate-pulse-once'
                 )}
                 style={{ backgroundColor: meal.status === 'Eaten' ? meal.color : undefined }}

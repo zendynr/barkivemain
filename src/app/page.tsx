@@ -8,6 +8,7 @@ import { UserProfile } from '@/components/dashboard/UserProfile';
 import { ActivityTracker } from '@/components/dashboard/ActivityTracker';
 import { CareTips } from '@/components/dashboard/CareTips';
 import { MemoriesCarousel } from '@/components/dashboard/MemoriesCarousel';
+import { MealTracker } from '@/components/dashboard/MealTracker';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
@@ -67,6 +68,7 @@ export default function Home() {
 
           <div className="lg:col-span-1 flex flex-col gap-6">
             <CareTips pet={activePet} />
+            <MealTracker feedingLogs={feedingLogs} />
           </div>
         </div>
       </div>
